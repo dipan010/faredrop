@@ -1,0 +1,99 @@
+"""Reference tables and route-list seeding.
+
+`python refdata.py sync`         -> download airports/airlines/cities (no token)
+`python refdata.py destinations` -> ask the API what's popular from each origin
+                                    and write data/destinations.json (needs token)
+"""
+
+import json
+import sys
+from pathlib import Path
+
+import api
+import config
+import db
+
+DATA = Path("data")
+
+
+def sync():
+    DATA.mkdir(exist_ok=True)
+    summary = {}
+    for name in ("airports", "airlines", "cities", "countries"):
+        payload = api.reference(name)
+        (DATA / f"{name}.json").write_text(json.dumps(payload))
+        summary[name] = len(payload)
+    return summary
+
+
+def load(name):
+    return json.loads((DATA / f"{name}.json").read_text())
+
+
+def airport_index():
+    """IATA -> {name, city_code, country, tz} for airports with a code."""
+    idx = {}
+    for a in load("airports"):
+        code = a.get("code")
+        if code:
+            idx[code] = {
+                "name": a.get("name"),
+                "city": a.get("city_code"),
+                "country": a.get("country_code"),
+                "tz": a.get("time_zone"),
+            }
+    return idx
+
+
+def airline_index():
+    return {a["code"]: a.get("name") for a in load("airlines") if a.get("code")}
+
+
+def seed_destinations():
+    """Use /v1/city-directions to pick the destinations worth watching.
+
+    Popularity comes from the API rather than a list I invented, which keeps
+    the route universe honest about where people from this origin actually fly.
+    """
+    conn = db.connect()
+    airports = airport_index()
+    out = {}
+    for origin in config.ORIGINS:
+        payload, _ = api.get("/v1/city-directions",
+                             {"origin": origin}, conn=conn)
+        data = payload.get("data", {})
+        # data: {DEST: {price, airline, flight_number, departure_at, ...}}
+        ranked = sorted(data.items(),
+                        key=lambda kv: kv[1].get("price", 10**9))
+        picks = []
+        for dest, info in ranked[: config.MAX_DESTINATIONS]:
+            picks.append({
+                "code": dest,
+                "name": airports.get(dest, {}).get("name", dest),
+                "country": airports.get(dest, {}).get("country"),
+                "seen_price": info.get("price"),
+            })
+            conn.execute(
+                "INSERT OR IGNORE INTO route (origin, destination) VALUES (?,?)",
+                (origin, dest),
+            )
+        out[origin] = picks
+    conn.commit()
+    Path(config.DESTINATIONS_FILE).write_text(json.dumps(out, indent=2))
+    return out
+
+
+if __name__ == "__main__":
+    cmd = sys.argv[1] if len(sys.argv) > 1 else "sync"
+    if cmd == "sync":
+        for name, n in sync().items():
+            print(f"  {name:10} {n:>6} records")
+    elif cmd == "destinations":
+        for origin, picks in seed_destinations().items():
+            print(f"{origin}: {len(picks)} destinations")
+            for p in picks[:10]:
+                print(f"   {p['code']}  {p['name']}")
+            if len(picks) > 10:
+                print(f"   ... and {len(picks)-10} more")
+    else:
+        sys.exit(f"unknown command: {cmd}")

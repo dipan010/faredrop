@@ -1,0 +1,18 @@
+# Generated, refetchable, or secret. None of it belongs in history.
+__pycache__/
+*.py[cod]
+
+# Reference tables: re-download with `python3 refdata.py sync`.
+data/*.json
+
+# The accumulated price history. This is the asset, but it is a WAL-mode
+# SQLite file -- back it up, don't version it.
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# Verbatim API payloads. Large, and reproducible from the DB.
+raw/
+
+.env
+.DS_Store
