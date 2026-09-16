@@ -150,7 +150,13 @@ def active_routes(conn):
     ).fetchall()
 
 
-def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC):
+def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None):
+    """Walk `plan`, a list of (origin, destination, month).
+
+    The plan is passed in rather than built here so scheduling stays a
+    separate decision -- see schedule.py. The walk itself is unchanged:
+    per-cell commits, raw before parse, one bad cell never ends the run.
+    """
     routes = active_routes(conn)
     if not routes:
         sys.exit(
@@ -160,9 +166,10 @@ def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC):
             "    python3 refdata.py destinations"
         )
 
-    plan = [(r["origin"], r["destination"], month)
-            for r in routes
-            for month in months_ahead(config.MONTHS_AHEAD)]
+    if plan is None:
+        plan = [(r["origin"], r["destination"], month)
+                for r in routes
+                for month in months_ahead(config.MONTHS_AHEAD)]
     if limit:
         plan = plan[:limit]
 
@@ -272,6 +279,11 @@ if __name__ == "__main__":
                     help="inspect the newest stored raw payload and exit")
     ap.add_argument("--reparse", action="store_true",
                     help="re-run the parser over stored raw payloads and exit")
+    ap.add_argument("--scheduled", action="store_true",
+                    help="spend a fixed daily budget where it counts"
+                         " (see schedule.py) instead of walking every cell")
+    ap.add_argument("--budget", type=int, default=None,
+                    help="calls for this run; implies --scheduled")
     args = ap.parse_args()
 
     conn = db.connect()
@@ -285,5 +297,17 @@ if __name__ == "__main__":
 
     started = datetime.now(timezone.utc).isoformat(timespec="seconds")
     print(f"collecting at {started}\n")
-    for k, v in run(conn, limit=args.limit, dry_run=args.dry_run).items():
+
+    todays_plan = None
+    if args.scheduled or args.budget is not None:
+        import schedule
+        todays_plan, why = schedule.plan(conn, budget=args.budget)
+        print(f"  plan: {why['planned']} calls "
+              f"({why['mature_due']} maintenance, "
+              f"{why['planned'] - why['mature_due']} building)"
+              + (f", {why['starved']} cells starved" if why["starved"] else "")
+              + "\n")
+
+    for k, v in run(conn, limit=args.limit, dry_run=args.dry_run,
+                    plan=todays_plan).items():
         print(f"  {k:24} {v}")

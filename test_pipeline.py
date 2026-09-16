@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 
 import baseline
 import collect
+import schedule
 import config
 import db
 import detect
@@ -244,6 +245,68 @@ def main():
               detect.POOLED_SENTINEL == "*" and isinstance(pooled, dict))
         check("no real route leaks into the pooled fallback",
               all(k[0][0] != "*" for k in per_route))
+
+        print("\nscheduler")
+        c5 = db.connect(str(Path(tmp) / "sched.db"))
+        for d in ("DXB", "SIN", "BKK", "LHR"):
+            c5.execute("INSERT INTO route (origin,destination) VALUES ('BLR',?)",
+                       (d,))
+        c5.commit()
+        month = collect.months_ahead(1)[0]
+
+        def stock(dest, n, price0=20000):
+            """Give a cell n distinct quotes."""
+            collect._insert(c5, [
+                {**rows[0], "destination": dest, "price": float(price0 + i),
+                 "depart_date": f"{month}-1{i % 9}", "depart_month": month,
+                 "fetched_at": stamp(5)} for i in range(n)])
+
+        stock("DXB", config.MIN_OBSERVATIONS + 4)   # mature
+        stock("SIN", config.MIN_OBSERVATIONS - 1)   # one quote short
+        stock("BKK", 2)                             # barely started
+        # LHR left untouched
+
+        chosen, why = schedule.plan(c5, budget=3)
+        order = [c[1] for c in chosen if c[2] == month]
+        check(f"mature cells are served first ({order})",
+              order and order[0] == "DXB")
+        check("then the cell closest to maturity, not the neediest",
+              order[1] == "SIN")
+        check("a cell at n=11 outranks one at n=2",
+              order.index("SIN") < (order.index("BKK")
+                                    if "BKK" in order else 99))
+        check("the budget is not exceeded", why["planned"] <= 3)
+
+        print("\nscheduler: the reserve keeps it from locking")
+        c6 = db.connect(str(Path(tmp) / "lock.db"))
+        for d in ("DXB", "SIN", "BKK", "LHR", "CDG", "DOH"):
+            c6.execute("INSERT INTO route (origin,destination) VALUES ('BLR',?)",
+                       (d,))
+        c6.commit()
+        # Every route mature except one, and a budget only big enough for
+        # maintenance. Without a reserve the new cell is never opened.
+        for d in ("DXB", "SIN", "BKK", "LHR", "CDG"):
+            collect._insert(c6, [
+                {**rows[0], "destination": d, "price": float(20000 + i),
+                 "depart_date": f"{month}-1{i % 9}", "depart_month": month,
+                 "fetched_at": stamp(5)}
+                for i in range(config.MIN_OBSERVATIONS + 2)])
+        chosen6, why6 = schedule.plan(c6, budget=3)
+        fresh = [c for c in chosen6 if c[1] == "DOH"]
+        check(f"an unexplored cell still gets a call "
+              f"({why6['mature_due']} due, {why6['maintenance_deferred']} deferred)",
+              len(fresh) >= 1)
+        check("maintenance was capped, not cancelled",
+              why6["planned"] - len(fresh) >= 1)
+
+        print("\nscheduler: honest about starvation")
+        _, why7 = schedule.plan(c6, budget=1)
+        check(f"a starved budget is reported ({why7['starved']} cells)",
+              why7["starved"] > 0)
+        check("and nothing is silently dropped from the count",
+              why7["planned"] + why7["starved"]
+              >= why7["mature_due"] + why7["maturing"] + why7["untouched"]
+              - why7["maintenance_deferred"])
 
         print("\nguards")
         check("empty route list exits with instructions",

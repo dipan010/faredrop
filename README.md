@@ -58,6 +58,7 @@ python3 digest.py                 # what's worth looking at today
 | `refdata.py` | Airport/airline tables; seeds the route list. |
 | `probe.py` | Dumps every candidate endpoint for inspection. |
 | `collect.py` | The daily walk. The only thing that must not miss a day. |
+| `schedule.py` | Where the daily call budget goes, when it can't cover everything. |
 | `baseline.py` | The price model: distinct quotes, booking horizon, log space. |
 | `detect.py` | Flags fares below the baseline. |
 | `digest.py` | The review queue -- deals plus how ready the data is. |
@@ -116,6 +117,45 @@ that.
 no observations yet. `simulate.py` shows the code degrades sanely on sparse
 input; it cannot tell you the right numbers, because measuring precision on a
 generator the model is built to invert proves only that it inverts it.
+
+## Spending a limited budget
+
+40 destinations x 6 months is 240 cells, so a uniform daily walk costs 240
+calls. If that's more than your tier allows, **watch fewer destinations
+first** -- `MAX_DESTINATIONS` is the same lever as a scheduler and much
+easier to reason about.
+
+If you want all 40 watched anyway, `collect.py --scheduled` allocates a fixed
+budget instead. The argument is a threshold effect: below `MIN_OBSERVATIONS`
+a cell has no baseline, so it can produce no deal at any price. 240 cells at
+n=6 are worth zero; 40 at n=12 are worth everything. So mature cells are
+served first, and whatever's left goes to the cells *closest* to maturity
+rather than the neediest -- finishing a cell at n=11 buys a working baseline,
+starting a fifth at n=0 buys nothing.
+
+Measured against a plain round-robin, 24 cells over 30 days:
+
+| calls/day | round-robin matures | cohort matures |
+|---:|---:|---:|
+| 1 | 0 | 3 |
+| 2 | 0 | 9 |
+| 3 | 16 | 16 |
+| 4 | 24 | 18 |
+| 6 | 24 | 24 |
+| 12 | 24 (360 calls) | 24 (271 calls) |
+
+Only one regime wants a scheduler. When the budget can't mature everything,
+round-robin matures *nothing* -- every cell stalls just short of the line --
+and cohorting is the difference between a working system and no system. When
+the budget is comfortable, round-robin is as good and simpler; at 12/day the
+only gain is a quarter of the calls back. `python3 schedule.py` tells you
+which regime you're in. `collect.py` still walks uniformly by default.
+
+One thing that had to be fixed to make this work at all: capping maintenance.
+Left uncapped the policy is absorbing -- once enough cells mature, re-polling
+them eats the whole budget and no new cell is ever opened again. That showed
+up in simulation as the cohort locking at 9 cells while round-robin reached
+16. `EXPLORE_RESERVE` is the floor that prevents it.
 
 ## Known limits, stated honestly
 

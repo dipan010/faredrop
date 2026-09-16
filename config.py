@@ -116,5 +116,37 @@ DETECT_WINDOW_DAYS = 3
 # repeats would both overstate readiness and collapse the scale estimate.
 MIN_OBSERVATIONS = 12
 
+# --- the daily budget --------------------------------------------------
+# ORIGINS x MAX_DESTINATIONS x MONTHS_AHEAD is 240 cells, so a uniform daily
+# walk costs 240 calls. If that is more than the tier allows, the cheapest
+# fix is fewer destinations -- MAX_DESTINATIONS is the same lever as a
+# scheduler and far more legible. schedule.py only earns its place if you
+# want all 40 routes watched on a budget that can't walk them.
+
+# Calls per day. PLACEHOLDER: the free-tier rate limit is not known here.
+# The scheduler is correct for any value; if the token comes back with a
+# hard limit, this one constant changes.
+DAILY_CALL_BUDGET = 240
+
+# How often a matured cell is re-polled. Tied to DETECT_WINDOW_DAYS on
+# purpose: a mature cell polled less often than the detection window is
+# invisible to detect.run on the days in between. Raising this above the
+# window buys budget by accepting deliberate blind spots -- which may be a
+# fine trade, but it should be a choice and not a surprise.
+MAINTENANCE_DAYS = 3
+
+# Share of the daily budget that maintenance may never take. Without a floor
+# the policy is absorbing: once enough cells mature, re-polling them consumes
+# everything and no new cell is ever opened again. Observed directly in
+# simulation -- at 3 calls/day the cohort locked at 9 cells while a plain
+# round-robin reached 16.
+EXPLORE_RESERVE = 0.34
+
+# Distinct new quotes a single call is expected to yield. PLACEHOLDER, and
+# only used to estimate how long maturity will take -- never to allocate.
+# schedule.measured_yield() replaces it with the real figure as soon as
+# there is enough history to measure one.
+QUOTES_PER_CALL = 0.5
+
 DB_PATH = "data/faredrop.db"
 RAW_DIR = "raw"
