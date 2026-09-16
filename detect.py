@@ -20,11 +20,13 @@ the digest. You are the review queue at this scale.
 """
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import baseline
 import config
 import db
+
+POOLED_SENTINEL = baseline.POOLED_SENTINEL
 
 
 def quality_flags(obs, airlines=None):
@@ -59,15 +61,20 @@ def _days_to_departure(depart_date, fetched_at):
 
 
 def load_offsets(conn):
-    """Route-level horizon offsets, plus a pooled fallback per bucket."""
+    """Route-level horizon offsets, plus the pooled fallback per bucket.
+
+    The fallback has to be the genuinely pooled value, which baseline.compute
+    persists under the sentinel route '*'. Borrowing some other route's
+    offset instead would hand an unseen route a number fitted to a different
+    market.
+    """
     per_route, pooled = {}, {}
     for r in conn.execute("SELECT * FROM bucket_offset"):
+        if r["origin"] == POOLED_SENTINEL:
+            pooled[r["bucket"]] = r["offset_log"]
+            continue
         key = (r["origin"], r["destination"], r["trip_class"])
         per_route[(key, r["bucket"])] = r["offset_log"]
-        pooled.setdefault(r["bucket"], []).append(
-            (r["offset_log"], r["pooled_from"]))
-    # Fall back to the widest-backed value seen for that bucket.
-    pooled = {b: max(vals, key=lambda t: t[1])[0] for b, vals in pooled.items()}
     return per_route, pooled
 
 
@@ -83,8 +90,11 @@ def score(price, p50_log, log_scale, offset_log):
     return predicted, ratio, z
 
 
-def run(conn):
-    now = datetime.now(timezone.utc).isoformat(timespec="seconds")
+def run(conn, window_days=None):
+    now = datetime.now(timezone.utc)
+    window_days = config.DETECT_WINDOW_DAYS if window_days is None else window_days
+    window_start = (now - timedelta(days=window_days)).isoformat(timespec="seconds")
+    now = now.isoformat(timespec="seconds")
     per_route, pooled = load_offsets(conn)
 
     rows = conn.execute(
@@ -101,8 +111,12 @@ def run(conn):
           AND b.n >= ?
           AND b.p50_log IS NOT NULL
           AND (o.expires_at IS NULL OR o.expires_at > ?)
+          -- Today's fares only. A fare that was cheap in March is history,
+          -- not something anyone can book; without this clause every run
+          -- re-examines the entire table and re-flags it.
+          AND o.fetched_at >= ?
         """,
-        (config.MIN_OBSERVATIONS, now),
+        (config.MIN_OBSERVATIONS, now, window_start),
     ).fetchall()
 
     found = 0
@@ -143,7 +157,8 @@ def run(conn):
         found += 1
 
     conn.commit()
-    return {"candidates_examined": len(rows), "deals_found": found}
+    return {"candidates_examined": len(rows), "deals_found": found,
+            "window_days": window_days}
 
 
 if __name__ == "__main__":

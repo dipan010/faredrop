@@ -44,6 +44,11 @@ import config
 import db
 
 
+# Route code under which the cross-route pooled offset is stored, so that a
+# route with no data of its own has something honest to fall back on.
+POOLED_SENTINEL = "*"
+
+
 def bucket_for(dtd):
     """Which booking-horizon bucket a days-to-departure value falls in."""
     if dtd is None:
@@ -129,6 +134,8 @@ def _route_key(q):
 def horizon_offsets(quotes):
     """How much each booking horizon moves the price, per route.
 
+    Returns (per-route offsets, pooled offset by bucket, pooled count).
+
     A route's own offset is trusted in proportion to how much data backs it
     -- n/(n+k) of the say -- with the rest coming from the same bucket pooled
     across every route. A route with three quotes in a bucket gets mostly the
@@ -159,9 +166,10 @@ def horizon_offsets(quotes):
     # last-minute offset read +0.04 at 22 quotes and +0.38 at 31, for no
     # reason but which side of the line it landed on. Continuous shrinkage
     # keeps a thin bucket conservative without the cliff.
-    pooled_offset = {}
+    pooled_offset, pooled_n = {}, {}
     for bucket, resids in pooled.items():
         m = len(resids)
+        pooled_n[bucket] = m
         pooled_offset[bucket] = (m / (m + config.MIN_BUCKET_QUOTES)) * \
             statistics.median(resids)
 
@@ -176,7 +184,7 @@ def horizon_offsets(quotes):
             "n": n,
             "pooled_from": len(pooled.get(bucket, [])),
         }
-    return offsets, pooled_offset
+    return offsets, pooled_offset, pooled_n
 
 
 def offset_lookup(offsets, pooled_offset, route_key, bucket):
@@ -213,9 +221,17 @@ def compute(conn, min_observations=None):
     # recorded it, so n would never reach MIN_OBSERVATIONS and no baseline
     # would ever exist.
     quotes = distinct_quotes(conn)
-    offsets, pooled_offset = horizon_offsets(quotes)
+    offsets, pooled_offset, pooled_n = horizon_offsets(quotes)
 
     conn.execute("DELETE FROM bucket_offset")
+    for bucket, value in pooled_offset.items():
+        conn.execute(
+            "INSERT INTO bucket_offset (origin, destination, trip_class,"
+            " bucket, offset_log, n, pooled_from, computed_at)"
+            " VALUES (?,?,?,?,?,?,?,?)",
+            (POOLED_SENTINEL, POOLED_SENTINEL, 0, bucket, value, 0,
+              pooled_n.get(bucket, 0), now),
+        )
     for (route_key, bucket), info in offsets.items():
         conn.execute(
             "INSERT INTO bucket_offset (origin, destination, trip_class,"
@@ -241,6 +257,11 @@ def compute(conn, min_observations=None):
         adjusted = [q["log_price"]
                     - offset_lookup(offsets, pooled_offset, route_key, q["bucket"])
                     for q in qs]
+        # Note: an outlier is inside its own cell's estimate, so a mistake
+        # fare damps the very scale used to score it. Negligible at n=500,
+        # material at n=12 where cells first start emitting. Trimming the
+        # bottom decile before estimating scale is the fix -- deferred until
+        # there is real data to check the trim against.
         p50_log = _cell_level(adjusted)
         log_scale = max(_mad(adjusted, p50_log), config.MIN_LOG_SCALE)
 

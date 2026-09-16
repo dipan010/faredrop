@@ -104,6 +104,13 @@ MIN_ABS_SAVING = 4000
 # fare. A ranking heuristic, not a classifier -- see detect.py on why the
 # left tail of a distribution of minima won't support a real one.
 MISTAKE_Z = 3.5
+# Only observations fetched within this many days are candidates. Without it
+# detection re-walks the whole history every run and re-surfaces fares that
+# were cheap months ago as if they were bookable today. expires_at does not
+# cover this: it is frequently NULL, and whether it is populated at all
+# depends on a field mapping that is still unverified.
+DETECT_WINDOW_DAYS = 3
+
 # Don't model a route-month until it has this many DISTINCT quotes. Not raw
 # rows: the same fare reappears in the feed day after day, and counting the
 # repeats would both overstate readiness and collapse the scale estimate.

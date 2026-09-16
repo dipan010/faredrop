@@ -10,6 +10,7 @@ import tempfile
 from pathlib import Path
 
 import math
+from datetime import datetime, timedelta, timezone
 
 import baseline
 import collect
@@ -199,6 +200,50 @@ def main():
         detect.run(c3)
         check("a big percentage off pocket change is not a deal",
               c3.execute("SELECT count(*) FROM deal").fetchone()[0] == 0)
+
+        print("\nmodel: the recency window")
+        c4 = db.connect(str(Path(tmp) / "recency.db"))
+        now = datetime.now(timezone.utc)
+        stamp = lambda d: (now - timedelta(days=d)).isoformat(timespec="seconds")
+        far_off = (now + timedelta(days=60)).date().isoformat()
+        random.seed(5)
+        # Enough distinct history, all of it old.
+        collect._insert(c4, [
+            {**rows[0], "price": float(random.gauss(40000, 2000)),
+             "depart_date": far_off, "depart_month": far_off[:7],
+             "fetched_at": stamp(40 + i)} for i in range(20)])
+        # One fare that was a bargain months ago, one found today.
+        collect._insert(c4, [
+            {**rows[0], "price": 14000.0, "depart_date": far_off,
+             "depart_month": far_off[:7], "airline": "OLD",
+             "fetched_at": stamp(30), "expires_at": None},
+            {**rows[0], "price": 14000.0, "depart_date": far_off,
+             "depart_month": far_off[:7], "airline": "NEW",
+             "fetched_at": stamp(0), "expires_at": None}])
+        baseline.compute(c4)
+        res = detect.run(c4)
+        check(f"only recent rows are examined ({res['candidates_examined']} of 22)",
+              res["candidates_examined"] < 22)
+        flagged = {r[0] for r in c4.execute(
+            "SELECT o.airline FROM deal d JOIN fare_observation o"
+            " ON o.id = d.observation_id")}
+        check("today's bargain is flagged", "NEW" in flagged)
+        check("a bargain from 30 days ago is NOT re-served as bookable",
+              "OLD" not in flagged)
+        check("but it still counts as history",
+              any(q["price"] == 14000.0 for q in baseline.distinct_quotes(c4)))
+        check("no deal is older than the window",
+              c4.execute(
+                  "SELECT count(*) FROM deal d JOIN fare_observation o"
+                  " ON o.id = d.observation_id WHERE o.fetched_at < ?",
+                  (stamp(config.DETECT_WINDOW_DAYS),)).fetchone()[0] == 0)
+
+        print("\nmodel: pooled fallback")
+        per_route, pooled = detect.load_offsets(conn)
+        check("the pooled offset is stored under the sentinel route",
+              detect.POOLED_SENTINEL == "*" and isinstance(pooled, dict))
+        check("no real route leaks into the pooled fallback",
+              all(k[0][0] != "*" for k in per_route))
 
         print("\nguards")
         check("empty route list exits with instructions",

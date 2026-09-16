@@ -102,6 +102,11 @@ Then three gates, and they are not equally trustworthy:
 | Absolute saving | At least `MIN_ABS_SAVING` below it. The only gate that needs no calibrated scale. |
 | Outlier score | How far into the left tail, in robust log units. **Ranks, does not classify.** |
 
+Only fares fetched within `DETECT_WINDOW_DAYS` are candidates. A fare that
+was cheap in March is history, not something anyone can book, and without
+that bound every run re-walks the whole table and re-serves it as today's
+deal. It still counts toward the baseline -- it just isn't offered.
+
 `kind='mistake'` means "look at this one first". Every price in the feed is a
 minimum over a ~48h search window, and the left tail of a distribution of
 minima is not the tail the score's arithmetic assumes. Logs fix the skew, not
