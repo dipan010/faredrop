@@ -308,6 +308,18 @@ def main():
               >= why7["mature_due"] + why7["maturing"] + why7["untouched"]
               - why7["maintenance_deferred"])
 
+        print("\nscheduler: the CLI seam")
+        # The path a user actually invokes: plan -> run. Tested end to end
+        # because nothing else checks that run() accepts what plan() emits.
+        planned, _ = schedule.plan(c5, budget=2)
+        walked = collect.run(c5, plan=planned, dry_run=True, pause=0)
+        check(f"run consumes a plan verbatim ({walked['cells_planned']} cells)",
+              walked["cells_planned"] == len(planned) == 2)
+        check("and makes no calls while dry", walked["cells_fetched"] == 0)
+        check("an empty plan is walked, not silently replaced by everything",
+              collect.run(c5, plan=[], dry_run=True,
+                          pause=0)["cells_planned"] == 0)
+
         print("\nguards")
         check("empty route list exits with instructions",
               _exits_cleanly(db.connect(str(Path(tmp) / "empty.db"))))

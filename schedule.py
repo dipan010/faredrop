@@ -31,6 +31,13 @@ against a plain round-robin over 24 cells for 30 days:
              6                     24                24
             12          24 (360 calls)    24 (271 calls)
 
+Read that for its shape, not its numbers. Every figure falls out of
+simulate.py's invented yield -- three quotes per call, lingering one to four
+days -- so the crossover moves when the yield does. What it establishes is
+that two regimes exist and which one you are in turns on whether the budget
+can mature every cell; it does not establish that 3 calls/day is anybody's
+crossover. diagnose() computes that from real history instead.
+
 Two regimes, and only one of them wants a scheduler. When the budget cannot
 mature every cell, round-robin matures *nothing* -- every cell stalls just
 short of the line -- and cohorting is the difference between a working system

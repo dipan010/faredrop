@@ -144,6 +144,14 @@ Measured against a plain round-robin, 24 cells over 30 days:
 | 6 | 24 | 24 |
 | 12 | 24 (360 calls) | 24 (271 calls) |
 
+**Read this table for its shape, not its numbers.** Every figure in it falls
+out of `simulate.py`'s invented yield -- three quotes per call, each lingering
+one to four days. Change that and the crossover moves. What the table
+establishes is that *two regimes exist* and which one you are in depends on
+whether the budget can mature every cell; it does not establish that 3
+calls/day is anyone's crossover. `python3 schedule.py` computes the boundary
+from your own history once there is any.
+
 Only one regime wants a scheduler. When the budget can't mature everything,
 round-robin matures *nothing* -- every cell stalls just short of the line --
 and cohorting is the difference between a working system and no system. When
