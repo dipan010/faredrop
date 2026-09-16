@@ -58,10 +58,59 @@ python3 digest.py                 # what's worth looking at today
 | `refdata.py` | Airport/airline tables; seeds the route list. |
 | `probe.py` | Dumps every candidate endpoint for inspection. |
 | `collect.py` | The daily walk. The only thing that must not miss a day. |
-| `baseline.py` | Rolling p10/p50/MAD per route-month. |
+| `baseline.py` | The price model: distinct quotes, booking horizon, log space. |
 | `detect.py` | Flags fares below the baseline. |
 | `digest.py` | The review queue -- deals plus how ready the data is. |
+| `simulate.py` | Synthetic history, for exercising the model with no data. |
 | `test_pipeline.py` | Token-free checks of parse -> baseline -> detect. |
+
+## How a deal is decided
+
+Everything hinges on predicting what a route-month *should* cost, then asking
+how far below it a fare sits.
+
+**Count distinct quotes, not rows.** The feed repeats the same fare day after
+day, so thirty rows can be four fares. Counting the repeats overstates how
+much history exists and collapses the spread estimate -- which is the exact
+number the outlier score divides by. Rows stay verbatim as the audit trail;
+they are collapsed on read, in `baseline.distinct_quotes`.
+
+**Condition on how far ahead you are booking.** A fare 200 days out and one
+10 days out are different distributions; pooled, the median is a blend and a
+fixed ratio is wrong against both. Four coarse buckets, not a fitted curve --
+at roughly one quote per cell per day a smooth booking curve is unfittable
+for months, whereas a bucket that never fills falls back to the route's own
+level and costs nothing.
+
+**Work in log space.** Fares are right-skewed and move multiplicatively. In
+logs, "20% below normal" is one distance on a ₹15k route and a ₹150k one, so
+a single threshold serves both.
+
+    log price  =  route level  +  horizon offset  +  cell offset  +  residual
+
+A route's horizon offset is trusted in proportion to the data behind it --
+`n/(n+k)` of the say, the rest from that bucket pooled across all routes,
+itself damped toward zero by the same rule. Both shrinkages bias the offset
+low, so the horizon is deliberately *under*-corrected: fewer false deals, at
+the cost of missing some real last-minute ones.
+
+Then three gates, and they are not equally trustworthy:
+
+| Gate | What it is |
+|---|---|
+| Ratio | Below `DEAL_RATIO` of prediction. Scale-free. |
+| Absolute saving | At least `MIN_ABS_SAVING` below it. The only gate that needs no calibrated scale. |
+| Outlier score | How far into the left tail, in robust log units. **Ranks, does not classify.** |
+
+`kind='mistake'` means "look at this one first". Every price in the feed is a
+minimum over a ~48h search window, and the left tail of a distribution of
+minima is not the tail the score's arithmetic assumes. Logs fix the skew, not
+that.
+
+**The thresholds are placeholders.** They have never been fitted -- there are
+no observations yet. `simulate.py` shows the code degrades sanely on sparse
+input; it cannot tell you the right numbers, because measuring precision on a
+generator the model is built to invert proves only that it inverts it.
 
 ## Known limits, stated honestly
 
@@ -78,3 +127,11 @@ python3 digest.py                 # what's worth looking at today
   still counts as history in `baseline.py`. Filtering expiry out of the
   baseline would discard each observation days after recording it, and no
   route would ever reach `MIN_OBSERVATIONS`.
+- Sustained drops get absorbed. A genuine fare war becomes the new normal
+  within a few weeks and stops flagging. That is the correct behaviour for
+  "cheaper than usual" and the wrong one for "cheap in absolute terms" --
+  `MIN_ABS_SAVING` is the only thing pushing back, and it is a blunt one.
+- A thin route-month produces no baseline rather than a guessed one. Pooling
+  it toward the route's other months (seasonality with shrinkage) is the
+  right next step; the decomposition has the slot, but three levels of
+  shrinkage cannot be checked against zero observations.

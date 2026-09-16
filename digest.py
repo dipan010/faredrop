@@ -34,10 +34,16 @@ def status(conn):
         return False
 
     rows = baseline.coverage(conn)
-    not_ready = [r for r in rows if r["n"] < config.MIN_OBSERVATIONS]
-    if not_ready:
-        print(f"\n  {DIM}{len(not_ready)} of {len(rows)} route-months still "
-              f"below {config.MIN_OBSERVATIONS} observations{RESET}")
+    if rows:
+        raw = sum(r["n_raw"] for r in rows)
+        distinct = sum(r["n"] for r in rows)
+        # The gap between these two is the honest readiness number. The feed
+        # repeats the same fare daily, so raw rows flatter the history badly.
+        print(f"  distinct fares      {distinct:,} {DIM}(from {raw:,} rows){RESET}")
+        not_ready = [r for r in rows if r["n"] < config.MIN_OBSERVATIONS]
+        if not_ready:
+            print(f"\n  {DIM}{len(not_ready)} of {len(rows)} route-months still "
+                  f"below {config.MIN_OBSERVATIONS} distinct quotes{RESET}")
     return True
 
 
@@ -45,7 +51,7 @@ def deals(conn, limit=25):
     rows = conn.execute(
         """
         SELECT * FROM deal
-        ORDER BY (kind='mistake') DESC, discount_pct DESC
+        ORDER BY (kind='mistake') DESC, outlier_z DESC, discount_pct DESC
         LIMIT ?
         """,
         (limit,),
@@ -58,14 +64,19 @@ def deals(conn, limit=25):
 
     print(f"\n{BOLD}Flagged fares{RESET}")
     for d in rows:
-        marker = f"{AMBER}MISTAKE?{RESET}" if d["kind"] == "mistake" else f"{GREEN}drop{RESET}"
+        # "look first", not a verdict -- the score ranks, it doesn't classify.
+        marker = (f"{AMBER}look first{RESET}" if d["kind"] == "mistake"
+                  else f"{GREEN}drop{RESET}")
         cabin = config.TRIP_CLASSES.get(d["trip_class"], "?")
         dates = d["depart_date"] or "?"
         if d["return_date"]:
             dates += f" → {d['return_date']}"
+        horizon = (f"{d['dtd']}d out" if d["dtd"] is not None else "horizon ?")
         print(f"\n  {BOLD}{d['origin']} → {d['destination']}{RESET}  "
-              f"{rupees(d['price'])}  {DIM}(usually {rupees(d['baseline_p50'])}){RESET}")
-        print(f"    {d['discount_pct']}% below baseline   {marker}   "
+              f"{rupees(d['price'])}  "
+              f"{DIM}(expected {rupees(d['baseline_p50'])} at {horizon}){RESET}")
+        saving = f", saves {rupees(d['abs_saving'])}" if d["abs_saving"] else ""
+        print(f"    {d['discount_pct']}% below expected{saving}   {marker}   "
               f"{cabin}   {dates}")
         for flag in json.loads(d["flags"] or "[]"):
             print(f"    {DIM}⚠ {flag}{RESET}")

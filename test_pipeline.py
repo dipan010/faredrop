@@ -9,6 +9,8 @@ import random
 import tempfile
 from pathlib import Path
 
+import math
+
 import baseline
 import collect
 import config
@@ -139,6 +141,64 @@ def main():
               first["observations_new"] == 0)
         check("and is idempotent on a second pass",
               collect.reparse(conn)["observations_new"] == 0)
+
+        print("\nmodel: dedup")
+        # A fare that sits in the feed for a week is one fare, not seven.
+        c2 = db.connect(str(Path(tmp) / "dedup.db"))
+        repeated = [{**rows[0], "price": 30000.0,
+                     "fetched_at": f"2026-08-{d:02d}T06:00:00+00:00"}
+                    for d in range(1, 21)]
+        collect._insert(c2, repeated)
+        check("20 rows of one fare collapse to 1 distinct quote",
+              len(baseline.distinct_quotes(c2)) == 1)
+        check("coverage reports both counts",
+              baseline.coverage(c2)[0]["n"] == 1
+              and baseline.coverage(c2)[0]["n_raw"] == 20)
+        check("and that cell is NOT declared ready",
+              baseline.compute(c2)["cells_written"] == 0)
+
+        print("\nmodel: booking horizon")
+        check("buckets partition the horizon",
+              baseline.bucket_for(3) == "last-minute"
+              and baseline.bucket_for(30) == "near"
+              and baseline.bucket_for(90) == "mid"
+              and baseline.bucket_for(300) == "far")
+        check("a missing horizon is not forced into a bucket",
+              baseline.bucket_for(None) is None)
+        check("no horizon data makes the term a no-op",
+              baseline.offset_lookup({}, {}, ("BLR", "DXB", 0), "near") == 0.0)
+
+        print("\nmodel: scoring")
+        # 20% below a 50k prediction, with the horizon term zero.
+        pred, ratio, z = detect.score(40000.0, math.log(50000.0), 0.10, 0.0)
+        check(f"prediction inverts the log level (₹{pred:,.0f})",
+              abs(pred - 50000) < 1)
+        check(f"ratio is scale-free ({ratio:.2f})", abs(ratio - 0.8) < 0.01)
+        check("a cheaper fare scores further into the tail",
+              detect.score(30000.0, math.log(50000.0), 0.10, 0.0)[2] > z)
+        check("the horizon term moves the prediction",
+              detect.score(40000.0, math.log(50000.0), 0.10, 0.2)[0] > pred)
+        check("log scale is floored, so agreement can't make z infinite",
+              abs(detect.score(1.0, 0.0, config.MIN_LOG_SCALE, 0.0)[2]) < 1e9)
+
+        print("\nmodel: the absolute-saving gate")
+        c3 = db.connect(str(Path(tmp) / "floor.db"))
+        # A cheap route: 45% off, but only a few hundred rupees saved.
+        random.seed(3)
+        cheap = [{**rows[0], "price": float(random.gauss(1200, 90)),
+                  "depart_date": f"2026-11-{d:02d}", "depart_month": "2026-11",
+                  "fetched_at": f"2026-08-{d:02d}T06:00:00+00:00"}
+                 for d in range(1, 21)]
+        collect._insert(c3, cheap)
+        collect._insert(c3, [{**rows[0], "price": 650.0,
+                              "depart_date": "2026-11-25",
+                              "depart_month": "2026-11",
+                              "fetched_at": "2026-09-01T06:00:00+00:00",
+                              "expires_at": None}])
+        baseline.compute(c3)
+        detect.run(c3)
+        check("a big percentage off pocket change is not a deal",
+              c3.execute("SELECT count(*) FROM deal").fetchone()[0] == 0)
 
         print("\nguards")
         check("empty route list exits with instructions",

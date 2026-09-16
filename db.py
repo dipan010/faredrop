@@ -72,13 +72,33 @@ CREATE TABLE IF NOT EXISTS baseline (
     destination  TEXT NOT NULL,
     depart_month TEXT NOT NULL,
     trip_class   INTEGER NOT NULL,
-    n            INTEGER NOT NULL,
+    n            INTEGER NOT NULL,   -- DISTINCT quotes, not rows
+    n_raw        INTEGER,            -- rows they were collapsed from
     p10          REAL,
     p50          REAL,
     mad          REAL,
+    -- The model proper lives in log space: prices are right-skewed and
+    -- multiplicative, so a 20% drop is the same distance on every route.
+    p50_log      REAL,               -- median log price at the reference horizon
+    log_scale    REAL,               -- robust (MAD) spread of log residuals
     lowest_seen  REAL,
     computed_at  TEXT NOT NULL,
     PRIMARY KEY (origin, destination, depart_month, trip_class)
+);
+
+-- How much a booking horizon moves the price, in log space, relative to the
+-- route's own reference level. Estimated per route where there is enough
+-- data and shrunk toward the cross-route pooled value where there isn't.
+CREATE TABLE IF NOT EXISTS bucket_offset (
+    origin       TEXT NOT NULL,
+    destination  TEXT NOT NULL,
+    trip_class   INTEGER NOT NULL,
+    bucket       TEXT NOT NULL,
+    offset_log   REAL NOT NULL,
+    n            INTEGER NOT NULL,
+    pooled_from  INTEGER NOT NULL,   -- quotes behind the cross-route value
+    computed_at  TEXT NOT NULL,
+    PRIMARY KEY (origin, destination, trip_class, bucket)
 );
 
 CREATE TABLE IF NOT EXISTS deal (
@@ -90,8 +110,12 @@ CREATE TABLE IF NOT EXISTS deal (
     return_date   TEXT,
     trip_class    INTEGER NOT NULL,
     price         REAL NOT NULL,
-    baseline_p50  REAL NOT NULL,
+    baseline_p50  REAL NOT NULL,   -- predicted for THIS booking horizon
     discount_pct  REAL NOT NULL,
+    abs_saving    REAL,
+    dtd           INTEGER,         -- days to departure when we saw it
+    dtd_bucket    TEXT,
+    outlier_z     REAL,            -- how far into the left tail; ranking only
     kind          TEXT NOT NULL,   -- 'drop' | 'mistake'
     flags         TEXT,            -- JSON list of quality warnings
     detected_at   TEXT NOT NULL,
@@ -101,6 +125,29 @@ CREATE TABLE IF NOT EXISTS deal (
 """
 
 
+# Columns added after the first databases were created. CREATE TABLE IF NOT
+# EXISTS won't add them, and the price history is the one thing we can't
+# refetch -- so we widen in place rather than asking anyone to start over.
+MIGRATIONS = [
+    ("baseline", "n_raw", "INTEGER"),
+    ("baseline", "p50_log", "REAL"),
+    ("baseline", "log_scale", "REAL"),
+    ("deal", "abs_saving", "REAL"),
+    ("deal", "dtd", "INTEGER"),
+    ("deal", "dtd_bucket", "TEXT"),
+    ("deal", "outlier_z", "REAL"),
+]
+
+
+def migrate(conn):
+    for table, column, decl in MIGRATIONS:
+        existing = {r["name"] for r in
+                    conn.execute(f"PRAGMA table_info({table})")}
+        if existing and column not in existing:
+            conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+    conn.commit()
+
+
 def connect(path=None):
     path = path or config.DB_PATH
     Path(path).parent.mkdir(parents=True, exist_ok=True)
@@ -108,6 +155,7 @@ def connect(path=None):
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
     conn.executescript(SCHEMA)
+    migrate(conn)
     return conn
 
 
