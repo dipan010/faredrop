@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.dipanghosh.faredrop</string>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/Users/dipanghosh/Projects/ideas/faredrop/daily.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>/Users/dipanghosh/Projects/ideas/faredrop</string>
+
+  <!-- 07:15 local. Any fixed hour works; what matters is that it is daily.
+       StartCalendarInterval is why this is launchd and not cron: if the
+       laptop was asleep at 07:15, launchd runs the job on wake instead of
+       skipping the day. cron would simply drop it, and a dropped day is
+       history that cannot be recovered. -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>7</integer>
+    <key>Minute</key><integer>15</integer>
+  </dict>
+
+  <!-- No run at load: loading the job shouldn't fire a collection. -->
+  <key>RunAtLoad</key>
+  <false/>
+
+  <key>StandardOutPath</key>
+  <string>/Users/dipanghosh/Projects/ideas/faredrop/logs/daily.log</string>
+  <key>StandardErrorPath</key>
+  <string>/Users/dipanghosh/Projects/ideas/faredrop/logs/daily.err</string>
+</dict>
+</plist>

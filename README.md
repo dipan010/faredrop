@@ -165,6 +165,26 @@ them eats the whole budget and no new cell is ever opened again. That showed
 up in simulation as the cohort locking at 9 cells while round-robin reached
 16. `EXPLORE_RESERVE` is the floor that prevents it.
 
+## Running it daily
+
+Collection is the only step that can't be caught up later, so it shouldn't
+depend on you remembering. `daily.sh` runs collect -> baseline -> detect ->
+digest; the launchd job runs it at 07:15.
+
+```sh
+echo 'export TRAVELPAYOUTS_TOKEN=...' > ~/.faredrop.env && chmod 600 ~/.faredrop.env
+cp com.dipanghosh.faredrop.plist ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/com.dipanghosh.faredrop.plist
+```
+
+launchd rather than cron for one reason: if the laptop is asleep at 07:15,
+launchd runs the job on wake, whereas cron drops it. A dropped day is history
+that can't be recovered.
+
+The token lives in `~/.faredrop.env` because launchd starts with a near-empty
+environment and won't inherit a shell export. Without it `daily.sh` exits 78
+(`EX_CONFIG`) so launchd doesn't thrash-retry.
+
 ## Known limits, stated honestly
 
 - Each observation is the cheapest fare *users found* in a ~48h window, not a
