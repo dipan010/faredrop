@@ -34,31 +34,15 @@ TRIP_CLASSES = {0: "economy", 1: "business", 2: "first"}
 # The filters that make a deal worth surfacing rather than just cheap.
 
 MAX_STOPS = 1              # Zomunk's bar: non-stop or one-stop only
-MIN_LAYOVER_MIN = 60
-MAX_LAYOVER_MIN = 300      # 5h; beyond this it stops being a good deal
-
 # Carriers we don't want to be alerted about, by IATA code.
 AIRLINE_BLOCKLIST = set()
 
-# Hubs an Indian passport can transit airside without a visa, for the
-# routings we actually see. Not a subsystem -- nationality is fixed and the
-# hub set is small. Anything not listed here gets flagged for manual check.
-VISA_FREE_TRANSIT_HUBS = {
-    "DOH", "DXB", "AUH", "SHJ",       # Gulf
-    "IST", "SAW",                      # Turkey (airside)
-    "SIN", "KUL", "BKK", "HKG",        # SE/E Asia airside
-    "ADD", "NBO",                      # Africa airside
-    "CMB", "KTM", "MLE",               # subcontinent
-}
-# Hubs that require a transit visa for an Indian passport in common
-# configurations -- these disqualify an itinerary outright.
-VISA_REQUIRED_TRANSIT_HUBS = {
-    "LHR", "LGW", "MAN",               # UK: DATV applies to Indian nationals
-    "CDG", "FRA", "MUC", "AMS", "ZRH", # Schengen: airside usually OK but
-                                       # terminal changes are not -- treat as
-                                       # needs-check rather than safe
-    "ICN", "CAN", "PVG", "PEK",
-}
+# Layover limits and transit-visa rules used to live here. They are gone, not
+# postponed: /v1/prices/cheap returns a stop COUNT and nothing else about the
+# routing -- no layover durations, no transit airports. A hub list that
+# nothing can evaluate reads like a working safety check, which is worse than
+# having none. The digest says so on every deal instead, and the README's
+# limits section states it plainly.
 
 # --- the price model ---------------------------------------------------
 # What a route-month "normally" costs, conditioned on how far ahead you are
@@ -147,6 +131,31 @@ EXPLORE_RESERVE = 0.34
 # schedule.measured_yield() replaces it with the real figure as soon as
 # there is enough history to measure one.
 QUOTES_PER_CALL = 0.5
+
+# --- alerting ----------------------------------------------------------
+# A deal you find out about on Thursday for a fare that went on Monday is not
+# a deal. Delivery is the difference between a pipeline and a product.
+
+# The same itinerary will not alert again within this many days...
+ALERT_SUPPRESS_DAYS = 7
+# ...unless it has got at least this much cheaper since. A fare falling from
+# 18k to 15k is news; the same 18k seen a third day running is not, and a
+# channel that repeats itself is one you learn to ignore.
+ALERT_IMPROVE_PCT = 0.10
+
+# How far back the digest looks. Without it a great fare from March stays
+# pinned to the top of the list forever.
+DIGEST_WINDOW_DAYS = 7
+
+# SMTP, from the environment only -- never checked in. Put them in
+# ~/.faredrop.env (chmod 600), which daily.sh sources; launchd inherits no
+# shell environment of its own. Gmail needs an app-specific password.
+SMTP_HOST = os.environ.get("SMTP_HOST", "")
+SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+SMTP_USER = os.environ.get("SMTP_USER", "")
+SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
+ALERT_FROM = os.environ.get("ALERT_FROM", "") or SMTP_USER
+ALERT_TO = os.environ.get("ALERT_TO", "")
 
 DB_PATH = "data/faredrop.db"
 RAW_DIR = "raw"

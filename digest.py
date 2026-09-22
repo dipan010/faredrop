@@ -6,10 +6,12 @@ shows candidates and their caveats; you decide what's real.
 
 import json
 import sys
+from datetime import datetime, timedelta, timezone
 
 import baseline
 import config
 import db
+import notify
 
 BOLD, DIM, RESET = "\033[1m", "\033[2m", "\033[0m"
 AMBER, GREEN = "\033[33m", "\033[32m"
@@ -47,19 +49,36 @@ def status(conn):
     return True
 
 
-def deals(conn, limit=25):
+def deals_rows(conn, limit=25, window_days=None):
+    """The rows the digest would print. Split out so it can be asserted on."""
+    # Recent deals only. Without this a great fare from March stays pinned to
+    # the top of the list forever, long after it stopped being bookable --
+    # the same mistake detect.run made before DETECT_WINDOW_DAYS.
+    window_days = (config.DIGEST_WINDOW_DAYS if window_days is None
+                   else window_days)
+    since = (datetime.now(timezone.utc) - timedelta(days=window_days)) \
+        .isoformat(timespec="seconds")
     rows = conn.execute(
         """
         SELECT * FROM deal
+        WHERE detected_at >= ?
         ORDER BY (kind='mistake') DESC, outlier_z DESC, discount_pct DESC
         LIMIT ?
         """,
-        (limit,),
+        (since, limit),
     ).fetchall()
+    return rows
+
+
+def deals(conn, limit=25, window_days=None):
+    window_days = (config.DIGEST_WINDOW_DAYS if window_days is None
+                   else window_days)
+    rows = deals_rows(conn, limit=limit, window_days=window_days)
 
     if not rows:
-        print(f"\n  {DIM}No deals flagged. Either nothing has dropped, or the "
-              f"baselines aren't seasoned yet.{RESET}")
+        print(f"\n  {DIM}No deals in the last {window_days} days. Either "
+              f"nothing has dropped, or the baselines aren't seasoned yet."
+              f"{RESET}")
         return
 
     print(f"\n{BOLD}Flagged fares{RESET}")
@@ -80,8 +99,8 @@ def deals(conn, limit=25):
               f"{cabin}   {dates}")
         for flag in json.loads(d["flags"] or "[]"):
             print(f"    {DIM}⚠ {flag}{RESET}")
-        print(f"    {DIM}https://www.google.com/travel/flights?q=Flights%20"
-              f"from%20{d['origin']}%20to%20{d['destination']}{RESET}")
+        sent = " (emailed)" if d["notified_at"] else ""
+        print(f"    {DIM}{notify.booking_url(d)}{sent}{RESET}")
 
 
 if __name__ == "__main__":

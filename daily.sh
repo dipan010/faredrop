@@ -28,3 +28,8 @@ echo "=== $(date -u +%FT%TZ) faredrop daily"
 "$PY" baseline.py
 "$PY" detect.py
 "$PY" digest.py
+
+# Delivery last, and never fatal: a mail misconfiguration must not make the
+# run look like collection failed. notify.py exits 0 when SMTP is unset and
+# stamps deals only on a successful send, so a bad day retries tomorrow.
+"$PY" notify.py

@@ -46,6 +46,7 @@ python3 collect.py                # walk routes, write observations
 python3 baseline.py               # recompute distributions
 python3 detect.py                 # flag drops + mistake-fare candidates
 python3 digest.py                 # what's worth looking at today
+python3 notify.py                 # email anything you haven't been told about
 ```
 
 ## Files
@@ -62,6 +63,7 @@ python3 digest.py                 # what's worth looking at today
 | `baseline.py` | The price model: distinct quotes, booking horizon, log space. |
 | `detect.py` | Flags fares below the baseline. |
 | `digest.py` | The review queue -- deals plus how ready the data is. |
+| `notify.py` | Emails deals you haven't been told about. Delivery, once. |
 | `simulate.py` | Synthetic history, for exercising the model with no data. |
 | `test_pipeline.py` | Token-free checks of parse -> baseline -> detect. |
 
@@ -177,6 +179,28 @@ cp com.dipanghosh.faredrop.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.dipanghosh.faredrop.plist
 ```
 
+Alerts go out by email at the end of that run. Put the SMTP settings in the
+same `~/.faredrop.env`:
+
+```sh
+export SMTP_HOST=smtp.gmail.com
+export SMTP_USER=you@gmail.com
+export SMTP_PASSWORD=your_app_specific_password   # Gmail rejects the normal one
+export ALERT_TO=you@gmail.com
+```
+
+`notify.py --dry-run` prints the email instead of sending it. With no SMTP
+configured it exits 0 with a hint rather than failing: a mail misconfiguration
+must never make the run look like collection broke.
+
+Each deal is emailed once. `notified_at` is stamped only after a successful
+send, so a mail outage delays an alert but never drops it, and running the
+digest twice cannot double-send. Repeat suppression happens earlier, in
+`detect.py`: the same itinerary won't be recorded again within
+`ALERT_SUPPRESS_DAYS` unless it has got `ALERT_IMPROVE_PCT` cheaper. A fare
+falling from ₹18k to ₹15k is news; the same ₹18k on a third consecutive day
+is how you teach someone to ignore a channel.
+
 launchd rather than cron for one reason: if the laptop is asleep at 07:15,
 launchd runs the job on wake, whereas cron drops it. A dropped day is history
 that can't be recovered.
@@ -191,8 +215,11 @@ environment and won't inherit a shell export. Without it `daily.sh` exits 78
   spot fare. The baseline is a median-of-minima -- a consistent yardstick for
   "cheaper than usual", not the market average. Don't quote it as one.
 - **Checked-bag inclusion is not in this feed.** Neither is enough routing
-  detail to decide transit visas. Every deal carries a flag saying so; verify
-  before booking.
+  detail to decide transit visas -- the response carries a stop *count* and no
+  layover times or transit airports. Layover limits and transit-hub rules used
+  to sit in `config.py` doing nothing, which read like a working safety check;
+  they are gone. Every deal carries a flag saying so instead. Verify before
+  booking.
 - Quiet routes get sampled less, so absence of a deal is not evidence of no
   deal.
 

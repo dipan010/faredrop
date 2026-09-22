@@ -66,16 +66,22 @@ def seed_destinations():
         ranked = sorted(data.items(),
                         key=lambda kv: kv[1].get("price", 10**9))
         picks = []
-        for dest, info in ranked[: config.MAX_DESTINATIONS]:
+        for rank, (dest, info) in enumerate(ranked[: config.MAX_DESTINATIONS]):
             picks.append({
                 "code": dest,
                 "name": airports.get(dest, {}).get("name", dest),
                 "country": airports.get(dest, {}).get("country"),
                 "seen_price": info.get("price"),
             })
+            # Rank, so a cheaper/more-popular destination sorts first. Without
+            # it schedule.py has nothing better than alphabetical order to pick
+            # which unexplored cell to open next.
             conn.execute(
-                "INSERT OR IGNORE INTO route (origin, destination) VALUES (?,?)",
-                (origin, dest),
+                "INSERT INTO route (origin, destination, popularity)"
+                " VALUES (?,?,?)"
+                " ON CONFLICT (origin, destination)"
+                " DO UPDATE SET popularity = excluded.popularity",
+                (origin, dest, rank),
             )
         out[origin] = picks
     conn.commit()

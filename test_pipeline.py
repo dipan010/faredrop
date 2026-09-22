@@ -14,10 +14,12 @@ from datetime import datetime, timedelta, timezone
 
 import baseline
 import collect
+import notify
 import schedule
 import config
 import db
 import detect
+import digest
 
 SAMPLE = {
     "success": True,
@@ -43,8 +45,22 @@ def check(label, cond):
     assert cond, label
 
 
+# Fixtures are timed relative to now, never written as literal dates. An
+# earlier version hardcoded them; they sat inside DETECT_WINDOW_DAYS on the
+# day they were written and silently fell out of it days later, turning a
+# passing suite into a failing one with no code change. A test whose result
+# depends on the calendar is not a test.
+NOW = datetime.now(timezone.utc)
+
+
+def at(days_ago, hour=6):
+    return (NOW - timedelta(days=days_ago)).replace(
+        hour=hour, minute=0, second=0, microsecond=0).isoformat(
+            timespec="seconds")
+
+
 def main():
-    rows = collect._parse(SAMPLE, "BLR", "DXB", "2026-09-17T06:00:00+00:00")
+    rows = collect._parse(SAMPLE, "BLR", "DXB", at(0))
     print("parser")
     check("drops the priceless offer", len(rows) == 2)
     r = rows[0]
@@ -52,7 +68,7 @@ def main():
     check("depart_month groupable", r["depart_month"] == "2026-11")
     check("return_date sliced", r["return_date"] == "2026-11-22")
     check("fetched_at is our clock, not found_at",
-          r["fetched_at"].startswith("2026-09-17"))
+          r["fetched_at"].startswith(NOW.date().isoformat()))
     check("price is a float", isinstance(r["price"], float))
     check("stops read from number_of_changes", r["stops"] == 0)
     check("flight_number stringified", r["flight_number"] == "565")
@@ -78,14 +94,14 @@ def main():
         # Harmless -- offers in one payload are genuinely different fares,
         # and fetched_at is what separates runs -- but don't over-trust it.
         check("same run dedups", collect._insert(conn, rows) == 0)
-        later = collect._parse(SAMPLE, "BLR", "DXB", "2026-09-18T06:00:00+00:00")
+        later = collect._parse(SAMPLE, "BLR", "DXB", at(-1))
         check("a later run is new history", collect._insert(conn, later) == 2)
 
         print("\nbaseline + detect")
         # 30 normal observations around 40k, then one 14k outlier.
         random.seed(7)
         obs = [{**rows[0], "price": float(random.gauss(40000, 2500)),
-                "fetched_at": f"2026-08-{d:02d}T06:00:00+00:00",
+                "fetched_at": at(20 + d),
                 "expires_at": "2020-01-01T00:00:00Z"}   # long expired on purpose
                for d in range(1, 31)]
         collect._insert(conn, obs)
@@ -97,8 +113,7 @@ def main():
         check(f"p50 near 40k (p50={b['p50']:.0f})", 35000 < b["p50"] < 45000)
 
         collect._insert(conn, [{**rows[0], "price": 14000.0,
-                                "fetched_at": "2026-09-19T06:00:00+00:00",
-                                "expires_at": None}])
+                                "fetched_at": at(0), "expires_at": None}])
         baseline.compute(conn)
         d = detect.run(conn)
         check(f"the outlier is flagged ({d['deals_found']} found)",
@@ -112,7 +127,7 @@ def main():
         # An expired fare that IS cheap enough to qualify -- the only way to
         # tell "history counts expired fares" apart from "deals don't".
         collect._insert(conn, [{**rows[0], "price": 15000.0,
-                                "fetched_at": "2026-09-20T06:00:00+00:00",
+                                "fetched_at": at(0, hour=7),
                                 "expires_at": "2020-01-01T00:00:00Z"}])
         baseline.compute(conn)
         detect.run(conn)
@@ -128,7 +143,9 @@ def main():
 
         print("\nreparse")
         raw = json.dumps(SAMPLE)
-        for ts in ("2026-09-17T06:00:00+00:00", "2026-09-18T06:00:00+00:00"):
+        # The same stamps the rows above were parsed with -- reparse must
+        # refill those exact observations, not create a parallel set.
+        for ts in (at(0), at(-1)):
             conn.execute(
                 "INSERT INTO raw_response (endpoint, params, status,"
                 " fetched_at, body) VALUES (?,?,?,?,?)",
@@ -187,16 +204,15 @@ def main():
         c3 = db.connect(str(Path(tmp) / "floor.db"))
         # A cheap route: 45% off, but only a few hundred rupees saved.
         random.seed(3)
+        far = (NOW + timedelta(days=75)).date().isoformat()
         cheap = [{**rows[0], "price": float(random.gauss(1200, 90)),
-                  "depart_date": f"2026-11-{d:02d}", "depart_month": "2026-11",
-                  "fetched_at": f"2026-08-{d:02d}T06:00:00+00:00"}
+                  "depart_date": far, "depart_month": far[:7],
+                  "fetched_at": at(20 + d)}
                  for d in range(1, 21)]
         collect._insert(c3, cheap)
         collect._insert(c3, [{**rows[0], "price": 650.0,
-                              "depart_date": "2026-11-25",
-                              "depart_month": "2026-11",
-                              "fetched_at": "2026-09-01T06:00:00+00:00",
-                              "expires_at": None}])
+                              "depart_date": far, "depart_month": far[:7],
+                              "fetched_at": at(0), "expires_at": None}])
         baseline.compute(c3)
         detect.run(c3)
         check("a big percentage off pocket change is not a deal",
@@ -204,23 +220,21 @@ def main():
 
         print("\nmodel: the recency window")
         c4 = db.connect(str(Path(tmp) / "recency.db"))
-        now = datetime.now(timezone.utc)
-        stamp = lambda d: (now - timedelta(days=d)).isoformat(timespec="seconds")
-        far_off = (now + timedelta(days=60)).date().isoformat()
+        far_off = (NOW + timedelta(days=60)).date().isoformat()
         random.seed(5)
         # Enough distinct history, all of it old.
         collect._insert(c4, [
             {**rows[0], "price": float(random.gauss(40000, 2000)),
              "depart_date": far_off, "depart_month": far_off[:7],
-             "fetched_at": stamp(40 + i)} for i in range(20)])
+             "fetched_at": at(40 + i)} for i in range(20)])
         # One fare that was a bargain months ago, one found today.
         collect._insert(c4, [
             {**rows[0], "price": 14000.0, "depart_date": far_off,
              "depart_month": far_off[:7], "airline": "OLD",
-             "fetched_at": stamp(30), "expires_at": None},
+             "fetched_at": at(30), "expires_at": None},
             {**rows[0], "price": 14000.0, "depart_date": far_off,
              "depart_month": far_off[:7], "airline": "NEW",
-             "fetched_at": stamp(0), "expires_at": None}])
+             "fetched_at": at(0), "expires_at": None}])
         baseline.compute(c4)
         res = detect.run(c4)
         check(f"only recent rows are examined ({res['candidates_examined']} of 22)",
@@ -237,7 +251,7 @@ def main():
               c4.execute(
                   "SELECT count(*) FROM deal d JOIN fare_observation o"
                   " ON o.id = d.observation_id WHERE o.fetched_at < ?",
-                  (stamp(config.DETECT_WINDOW_DAYS),)).fetchone()[0] == 0)
+                  (at(config.DETECT_WINDOW_DAYS),)).fetchone()[0] == 0)
 
         print("\nmodel: pooled fallback")
         per_route, pooled = detect.load_offsets(conn)
@@ -246,20 +260,108 @@ def main():
         check("no real route leaks into the pooled fallback",
               all(k[0][0] != "*" for k in per_route))
 
+        print("\nrepeat suppression")
+        c7 = db.connect(str(Path(tmp) / "repeat.db"))
+        far7 = (NOW + timedelta(days=60)).date().isoformat()
+        base = {**rows[0], "depart_date": far7, "depart_month": far7[:7]}
+        random.seed(11)
+        collect._insert(c7, [{**base, "price": float(random.gauss(40000, 2000)),
+                              "airline": f"H{i}", "fetched_at": at(30 + i)}
+                             for i in range(20)])
+        baseline.compute(c7)
+
+        def seen_on(days_ago, price, airline="ZZ"):
+            """One cheap fare for the SAME itinerary, seen N days ago."""
+            collect._insert(c7, [{**base, "price": float(price),
+                                  "airline": airline, "expires_at": None,
+                                  "fetched_at": at(days_ago)}])
+            baseline.compute(c7)
+            return detect.run(c7, window_days=40)
+
+        r1 = seen_on(2, 14000)
+        check(f"a new deal is recorded ({r1['deals_found']} found)",
+              r1["deals_found"] == 1)
+        r2 = seen_on(1, 14000, airline="YY")
+        check(f"the same fare seen again is suppressed "
+              f"({r2['repeats_suppressed']} suppressed)",
+              r2["deals_found"] == 0 and r2["repeats_suppressed"] >= 1)
+        r3 = seen_on(1, 13720, airline="XX")          # 2% cheaper
+        check("a 2% improvement is not news", r3["deals_found"] == 0)
+        r4 = seen_on(0, 11900, airline="WW")          # 15% cheaper
+        check(f"a 15% improvement is ({r4['deals_found']} found)",
+              r4["deals_found"] == 1)
+        check("so one itinerary produced two rows, not five",
+              c7.execute("SELECT count(*) FROM deal").fetchone()[0] == 2)
+        check("both share a fingerprint",
+              c7.execute("SELECT count(DISTINCT fingerprint) FROM deal")
+                .fetchone()[0] == 1)
+
+        print("\ndelivery")
+        sent_box = []
+        ok_sender = sent_box.append
+
+        def broken_sender(msg):
+            raise OSError("connection refused")
+
+        res = notify.run(c7, sender=broken_sender)
+        check(f"a failed send reports it ({res['status'][:24]})",
+              res["sent"] == 0 and res["status"].startswith("failed"))
+        check("and stamps nothing, so tomorrow retries",
+              c7.execute("SELECT count(*) FROM deal"
+                         " WHERE notified_at IS NULL").fetchone()[0] == 2)
+
+        res = notify.run(c7, sender=ok_sender)
+        check(f"a good send delivers every pending deal ({res['sent']})",
+              res["sent"] == 2 and len(sent_box) == 1)
+        check("and stamps them",
+              c7.execute("SELECT count(*) FROM deal"
+                         " WHERE notified_at IS NULL").fetchone()[0] == 0)
+        again = notify.run(c7, sender=ok_sender)
+        check("a second run sends nothing",
+              again["sent"] == 0 and len(sent_box) == 1)
+
+        print("\nthe email itself")
+        msg = sent_box[0]
+        body = msg.get_body(preferencelist=("plain",)).get_content()
+        check(f"subject names the headline deal ({msg['Subject'][:40]}...)",
+              "BLR" in msg["Subject"] and "DXB" in msg["Subject"])
+        check("subject says how many more", "+1 more" in msg["Subject"])
+        check("body carries the price and the expectation",
+              "11,900" in body and "expected" in body)
+        check("body links a dated Google Flights search",
+              "google.com/travel/flights" in body and far7 in body)
+        check("body keeps the bag/visa caveat", "transit visa" in body)
+        check("it has an HTML alternative too",
+              msg.get_body(preferencelist=("html",)) is not None)
+        check("compose touches no database and no network",
+              notify.compose([dict(sent_box and c7.execute(
+                  "SELECT * FROM deal LIMIT 1").fetchone())])["Subject"] != "")
+
+        print("\ndigest recency")
+        c7.execute("UPDATE deal SET detected_at = ? WHERE price = 14000.0",
+                   (at(30),))
+        c7.commit()
+        shown = [d["price"] for d in digest.deals_rows(c7)]
+        check(f"a 30-day-old deal is not shown ({shown})", 14000.0 not in shown)
+        check("today's is", 11900.0 in shown)
+
         print("\nscheduler")
         c5 = db.connect(str(Path(tmp) / "sched.db"))
         for d in ("DXB", "SIN", "BKK", "LHR"):
             c5.execute("INSERT INTO route (origin,destination) VALUES ('BLR',?)",
                        (d,))
         c5.commit()
-        month = collect.months_ahead(1)[0]
+        # Next month, not this one: a depart_date in the current month is
+        # partly in the past, and distinct_quotes drops those as non-forward
+        # prices -- which silently emptied every cell here.
+        month = collect.months_ahead(2)[1]
 
         def stock(dest, n, price0=20000):
             """Give a cell n distinct quotes."""
             collect._insert(c5, [
                 {**rows[0], "destination": dest, "price": float(price0 + i),
                  "depart_date": f"{month}-1{i % 9}", "depart_month": month,
-                 "fetched_at": stamp(5)} for i in range(n)])
+                 "fetched_at": at(5)} for i in range(n)])
 
         stock("DXB", config.MIN_OBSERVATIONS + 4)   # mature
         stock("SIN", config.MIN_OBSERVATIONS - 1)   # one quote short
@@ -289,10 +391,15 @@ def main():
             collect._insert(c6, [
                 {**rows[0], "destination": d, "price": float(20000 + i),
                  "depart_date": f"{month}-1{i % 9}", "depart_month": month,
-                 "fetched_at": stamp(5)}
+                 "fetched_at": at(5)}
                 for i in range(config.MIN_OBSERVATIONS + 2)])
         chosen6, why6 = schedule.plan(c6, budget=3)
-        fresh = [c for c in chosen6 if c[1] == "DOH"]
+        # The property is that exploration keeps a slice, not that one named
+        # destination wins the tie -- asserting the destination made this
+        # fail the moment the sort key gained a popularity term.
+        matured6 = schedule._maturity(c6)
+        fresh = [c for c in chosen6
+                 if matured6.get(c, 0) < config.MIN_OBSERVATIONS]
         check(f"an unexplored cell still gets a call "
               f"({why6['mature_due']} due, {why6['maintenance_deferred']} deferred)",
               len(fresh) >= 1)

@@ -29,7 +29,41 @@ import db
 POOLED_SENTINEL = baseline.POOLED_SENTINEL
 
 
-def quality_flags(obs, airlines=None):
+def fingerprint(origin, destination, depart_date, return_date, trip_class):
+    """The itinerary's identity. Price is deliberately NOT part of it.
+
+    The same trip seen again is the same deal however many days it lingers in
+    the feed; only a materially cheaper price for it is new information.
+    """
+    return "|".join(str(x) for x in
+                    (origin, destination, depart_date, return_date, trip_class))
+
+
+def already_seen(conn, fp, price, now, suppress_days=None, improve_pct=None):
+    """Has this itinerary already been recorded, at a price this good?
+
+    Returns the cheapest price previously recorded inside the window, or None
+    if this deal is new information. A quote sits in the feed for days and
+    detect walks a multi-day window, so without this one fare becomes three
+    identical alerts and the channel trains you to ignore it.
+    """
+    suppress_days = (config.ALERT_SUPPRESS_DAYS if suppress_days is None
+                     else suppress_days)
+    improve_pct = (config.ALERT_IMPROVE_PCT if improve_pct is None
+                   else improve_pct)
+    since = (datetime.fromisoformat(now) - timedelta(days=suppress_days)) \
+        .isoformat(timespec="seconds")
+    row = conn.execute(
+        "SELECT min(price) AS best FROM deal"
+        " WHERE fingerprint = ? AND detected_at >= ?", (fp, since)).fetchone()
+    best = row["best"] if row else None
+    if best is None:
+        return None
+    # New only if it beats the best we already told you about by enough.
+    return None if price <= best * (1 - improve_pct) else best
+
+
+def quality_flags(obs):
     """Reasons a cheap fare might still be a bad deal. Empty list == clean."""
     flags = []
     stops = obs["stops"]
@@ -119,7 +153,7 @@ def run(conn, window_days=None):
         (config.MIN_OBSERVATIONS, now, window_start),
     ).fetchall()
 
-    found = 0
+    found = suppressed = 0
     for o in rows:
         dtd = _days_to_departure(o["depart_date"], o["fetched_at"])
         bucket = baseline.bucket_for(dtd)
@@ -139,6 +173,12 @@ def run(conn, window_days=None):
         if saving < config.MIN_ABS_SAVING:
             continue
 
+        fp = fingerprint(o["origin"], o["destination"], o["depart_date"],
+                         o["return_date"], o["trip_class"])
+        if already_seen(conn, fp, o["price"], now) is not None:
+            suppressed += 1
+            continue
+
         kind = "mistake" if z >= config.MISTAKE_Z else "drop"
 
         conn.execute(
@@ -146,19 +186,20 @@ def run(conn, window_days=None):
             INSERT OR IGNORE INTO deal
                 (observation_id, origin, destination, depart_date, return_date,
                  trip_class, price, baseline_p50, discount_pct, abs_saving,
-                 dtd, dtd_bucket, outlier_z, kind, flags, detected_at)
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                 dtd, dtd_bucket, outlier_z, kind, flags, fingerprint,
+                 detected_at)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (o["id"], o["origin"], o["destination"], o["depart_date"],
              o["return_date"], o["trip_class"], o["price"], predicted,
              round((1 - ratio) * 100, 1), round(saving, 0), dtd, bucket,
-             round(z, 2), kind, json.dumps(quality_flags(o)), now),
+             round(z, 2), kind, json.dumps(quality_flags(o)), fp, now),
         )
         found += 1
 
     conn.commit()
     return {"candidates_examined": len(rows), "deals_found": found,
-            "window_days": window_days}
+            "repeats_suppressed": suppressed, "window_days": window_days}
 
 
 if __name__ == "__main__":

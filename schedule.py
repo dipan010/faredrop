@@ -69,6 +69,18 @@ def _cells(conn):
     return [(r["origin"], r["destination"], m) for r in routes for m in months]
 
 
+def _popularity(conn):
+    """Route -> rank from refdata (0 = most popular). Missing sorts last.
+
+    Only used to break ties between cells we have never touched: with nothing
+    else to go on, open the destination people actually fly to first.
+    """
+    return {(r["origin"], r["destination"]):
+            (r["popularity"] if r["popularity"] is not None else 10**6)
+            for r in conn.execute(
+                "SELECT origin, destination, popularity FROM route")}
+
+
 def _maturity(conn):
     """Distinct quotes per cell. The only state the policy reads."""
     out = {}
@@ -159,9 +171,11 @@ def plan(conn, budget=None, today=None, min_observations=None):
         chosen.append(cell)
         remaining -= 1
 
-    # 3. Only then open new ground, nearest departure month first -- those
-    #    baselines become useful soonest.
-    untouched.sort(key=lambda t: (t[0][2], t[0][0], t[0][1]))
+    # 3. Only then open new ground: nearest departure month first, since those
+    #    baselines become useful soonest, then the more popular destination.
+    pop = _popularity(conn)
+    untouched.sort(key=lambda t: (t[0][2], pop.get((t[0][0], t[0][1]), 10**6),
+                                  t[0][0], t[0][1]))
     for cell, _ in untouched:
         if remaining <= 0:
             break

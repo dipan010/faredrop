@@ -118,7 +118,12 @@ CREATE TABLE IF NOT EXISTS deal (
     outlier_z     REAL,            -- how far into the left tail; ranking only
     kind          TEXT NOT NULL,   -- 'drop' | 'mistake'
     flags         TEXT,            -- JSON list of quality warnings
+    -- The itinerary's identity, price deliberately excluded: the same trip
+    -- seen again is the same deal, and only a materially cheaper price for
+    -- it is new information.
+    fingerprint   TEXT,
     detected_at   TEXT NOT NULL,
+    notified_at   TEXT,             -- stamped only on a SUCCESSFUL send
     reviewed      INTEGER NOT NULL DEFAULT 0,
     UNIQUE (observation_id)
 );
@@ -136,7 +141,18 @@ MIGRATIONS = [
     ("deal", "dtd", "INTEGER"),
     ("deal", "dtd_bucket", "TEXT"),
     ("deal", "outlier_z", "REAL"),
+    ("deal", "fingerprint", "TEXT"),
+    ("deal", "notified_at", "TEXT"),
 ]
+
+
+# Indexes over migrated columns. These cannot live in SCHEMA: executescript
+# runs before the ALTERs, so on an existing database the column they index
+# does not exist yet.
+POST_MIGRATION_INDEXES = """
+CREATE INDEX IF NOT EXISTS idx_deal_fingerprint ON deal (fingerprint, detected_at);
+CREATE INDEX IF NOT EXISTS idx_deal_unnotified  ON deal (notified_at);
+"""
 
 
 def migrate(conn):
@@ -145,6 +161,7 @@ def migrate(conn):
                     conn.execute(f"PRAGMA table_info({table})")}
         if existing and column not in existing:
             conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {decl}")
+    conn.executescript(POST_MIGRATION_INDEXES)
     conn.commit()
 
 

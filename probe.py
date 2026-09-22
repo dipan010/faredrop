@@ -16,7 +16,7 @@ import api
 import config
 import db
 
-RAW = "raw"
+RAW = config.RAW_DIR
 
 
 def next_month():
