@@ -333,9 +333,44 @@ def main():
         check("body keeps the bag/visa caveat", "transit visa" in body)
         check("it has an HTML alternative too",
               msg.get_body(preferencelist=("html",)) is not None)
-        check("compose touches no database and no network",
-              notify.compose([dict(sent_box and c7.execute(
-                  "SELECT * FROM deal LIMIT 1").fetchone())])["Subject"] != "")
+        # compose is pure: hand it plain dicts, get a message back. Asserted
+        # on content, because a check that cannot fail is worse than none.
+        plain = notify.compose([{
+            "origin": "BLR", "destination": "CDG", "price": 31000.0,
+            "baseline_p50": 62000.0, "discount_pct": 50.0, "abs_saving": 31000.0,
+            "dtd": 40, "trip_class": 0, "depart_date": "2027-01-10",
+            "return_date": "2027-01-20", "kind": "drop", "flags": "[]"}])
+        check("compose works on plain dicts, with no database",
+              "CDG" in plain["Subject"] and "31,000" in plain["Subject"])
+        check("and renders the itinerary in the body",
+              "2027-01-10" in plain.get_body(
+                  preferencelist=("plain",)).get_content())
+
+        print("\nno backlog on the first successful send")
+        # The shipping state: SMTP unconfigured for weeks while deals pile up
+        # unnotified. The first working send must not deliver a graveyard.
+        c8 = db.connect(str(Path(tmp) / "backlog.db"))
+        for i, age in enumerate((40, 30, 20, 1)):
+            c8.execute(
+                "INSERT INTO deal (observation_id, origin, destination,"
+                " depart_date, return_date, trip_class, price, baseline_p50,"
+                " discount_pct, kind, flags, fingerprint, detected_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (i, "BLR", "DXB", far7, far7, 0, 10000.0 + i, 30000.0, 60.0,
+                 "drop", "[]", f"fp{i}", at(age)))
+        c8.commit()
+        check(f"only recent unnotified deals are pending "
+              f"({len(notify.pending(c8))} of 4)",
+              len(notify.pending(c8)) == 1)
+        box8 = []
+        notify.run(c8, sender=box8.append)
+        check("the stale ones age out silently, not as one dead email",
+              len(box8) == 1
+              and "10,003" in box8[0].get_body(
+                  preferencelist=("plain",)).get_content())
+        check("and they are left unstamped rather than marked delivered",
+              c8.execute("SELECT count(*) FROM deal"
+                         " WHERE notified_at IS NULL").fetchone()[0] == 3)
 
         print("\ndigest recency")
         c7.execute("UPDATE deal SET detected_at = ? WHERE price = 14000.0",

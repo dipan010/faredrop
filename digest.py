@@ -7,14 +7,28 @@ shows candidates and their caveats; you decide what's real.
 import json
 import sys
 from datetime import datetime, timedelta, timezone
+from urllib.parse import quote
 
 import baseline
 import config
 import db
-import notify
 
 BOLD, DIM, RESET = "\033[1m", "\033[2m", "\033[0m"
 AMBER, GREEN = "\033[33m", "\033[32m"
+
+
+def booking_url(d):
+    """Google Flights, deep-linked to the actual dates.
+
+    The generic route query made you re-enter the dates by hand, which is the
+    wrong thing to ask of someone acting on a fare that may not last the day.
+    """
+    q = f"Flights from {d['origin']} to {d['destination']}"
+    if d["depart_date"]:
+        q += f" on {d['depart_date']}"
+        if d["return_date"]:
+            q += f" through {d['return_date']}"
+    return f"https://www.google.com/travel/flights?q={quote(q)}"
 
 
 def rupees(x):
@@ -100,7 +114,7 @@ def deals(conn, limit=25, window_days=None):
         for flag in json.loads(d["flags"] or "[]"):
             print(f"    {DIM}⚠ {flag}{RESET}")
         sent = " (emailed)" if d["notified_at"] else ""
-        print(f"    {DIM}{notify.booking_url(d)}{sent}{RESET}")
+        print(f"    {DIM}{booking_url(d)}{sent}{RESET}")
 
 
 if __name__ == "__main__":

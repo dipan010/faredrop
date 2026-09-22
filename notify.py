@@ -25,11 +25,12 @@ import argparse
 import json
 import smtplib
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 
 import config
 import db
+from digest import booking_url
 
 SUBJECT_MAX = 120
 
@@ -51,30 +52,27 @@ def rupees(x):
     return f"₹{x:,.0f}"
 
 
-def pending(conn, limit=25):
-    """Deals that have never been successfully emailed."""
+def pending(conn, limit=25, window_days=None):
+    """Deals never emailed AND still recent enough to act on.
+
+    The recency bound is not optional. Without it the first successful send
+    after any quiet stretch -- SMTP not configured yet, a long mail outage,
+    weeks of collecting before the mailbox is set up -- arrives as one email
+    containing every deal ever detected, nearly all of them long gone. A
+    stale unnotified deal ages out silently instead, which is correct: it was
+    never bookable by the time anyone would have read it.
+    """
+    window_days = (config.DIGEST_WINDOW_DAYS if window_days is None
+                   else window_days)
+    since = (datetime.now(timezone.utc) - timedelta(days=window_days)) \
+        .isoformat(timespec="seconds")
     return conn.execute(
         """
         SELECT * FROM deal
-        WHERE notified_at IS NULL
+        WHERE notified_at IS NULL AND detected_at >= ?
         ORDER BY (kind='mistake') DESC, outlier_z DESC, discount_pct DESC
         LIMIT ?
-        """, (limit,)).fetchall()
-
-
-def booking_url(d):
-    """Google Flights, deep-linked to the actual dates.
-
-    The generic route query made you re-enter the dates by hand, which is the
-    wrong thing to ask of someone acting on a fare that may not last the day.
-    """
-    q = f"Flights from {d['origin']} to {d['destination']}"
-    if d["depart_date"]:
-        q += f" on {d['depart_date']}"
-        if d["return_date"]:
-            q += f" through {d['return_date']}"
-    from urllib.parse import quote
-    return f"https://www.google.com/travel/flights?q={quote(q)}"
+        """, (since, limit)).fetchall()
 
 
 def _place(code, airports):
@@ -154,9 +152,9 @@ def send(msg):
         smtp.send_message(msg)
 
 
-def run(conn, dry_run=False, sender=None, limit=25):
+def run(conn, dry_run=False, sender=None, limit=25, window_days=None):
     """Send pending deals and stamp them. `sender` is injectable for tests."""
-    deals = pending(conn, limit=limit)
+    deals = pending(conn, limit=limit, window_days=window_days)
     if not deals:
         return {"pending": 0, "sent": 0, "status": "nothing to send"}
 

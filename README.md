@@ -193,6 +193,13 @@ export ALERT_TO=you@gmail.com
 configured it exits 0 with a hint rather than failing: a mail misconfiguration
 must never make the run look like collection broke.
 
+Only deals from the last `DIGEST_WINDOW_DAYS` are emailed. That bound is not
+cosmetic: without it, the first successful send after any quiet stretch --
+SMTP not set up yet, a mail outage, weeks of collecting before you wire the
+mailbox -- arrives as one email containing every deal ever detected, nearly
+all of them long gone. Stale ones age out silently, which is right: they were
+never bookable by the time anyone would have read them.
+
 Each deal is emailed once. `notified_at` is stamped only after a successful
 send, so a mail outage delays an alert but never drops it, and running the
 digest twice cannot double-send. Repeat suppression happens earlier, in
