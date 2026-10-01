@@ -35,8 +35,8 @@ Last reviewed: 2026-10-02
 - **Exit:** a real deal alert you'd act on.
 
 ### Phase 3 — Backup and robustness
-- [x] Daily local DB snapshot: `backup.py` runs in `daily.sh` after collect and keeps 14 copies in `backups/`. It uses the SQLite backup API, so it is WAL-safe.
-- [ ] Off-machine copy (set `BACKUP_DIR` in `config.py`). Local snapshots don't meet the exit criterion below.
+- [x] Daily DB snapshot: `backup.py` runs in `daily.sh` after collect and keeps 14 copies in each of `BACKUP_DIRS`. It uses the SQLite backup API, so it is WAL-safe.
+- [x] Off-machine copy: `BACKUP_DIRS` also writes to iCloud Drive (`faredrop-backups`), 2026-10-02. Verified from a launchd job: snapshot intact, 56 rows, integrity ok. Pruning goes by file name because launchd can write to that folder but not list it.
 - [x] GitHub remote for code: https://github.com/dipan010/faredrop. It is **public**, so the DB, backups and any secrets must stay git-ignored (they are).
 - [x] CI (`.github/workflows/check.yml`): tests on Python 3.9 plus a live `smoke.py` call using the `TRAVEL_PAYOUTS_API_KEY` repository secret; first run green on 2026-10-02.
 - [x] Alert if the collector misses a day: `health.py` (macOS notification; email once SMTP is set), 2026-10-02.

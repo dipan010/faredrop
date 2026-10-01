@@ -606,6 +606,9 @@ def main():
         check("snapshot carries rows still in the WAL",
               snap.execute("SELECT count(*) FROM raw_response").fetchone()[0] == 1)
         check("old snapshots pruned to keep", len(backup.snapshots(bdir)) == 3)
+        check("pruned by date, so no folder listing is needed",
+              [p.name for p in backup.snapshots(bdir)]
+              == [f"faredrop-2026-01-0{i}.db" for i in (3, 4, 5)])
         check("no temp file left behind", not list(bdir.glob("*.tmp")))
 
         print("\nmissed-day alarm")

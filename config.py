@@ -188,4 +188,13 @@ ALERT_FROM = os.environ.get("ALERT_FROM", "") or SMTP_USER
 ALERT_TO = os.environ.get("ALERT_TO", "")
 
 DB_PATH = "data/faredrop.db"
+
+# Daily DB snapshots (backup.py), kept for BACKUP_KEEP days in each folder.
+# The second is iCloud Drive, so losing this laptop doesn't lose the history.
+BACKUP_DIRS = [
+    "backups",
+    os.path.expanduser(
+        "~/Library/Mobile Documents/com~apple~CloudDocs/faredrop-backups"),
+]
+BACKUP_KEEP = 14
 RAW_DIR = "raw"

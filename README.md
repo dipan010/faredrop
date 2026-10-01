@@ -66,7 +66,7 @@ python3 notify.py                 # email anything you haven't been told about
 | `digest.py` | The review queue -- deals plus how ready the data is. |
 | `verify.py` | Re-checks pending deals on Google Flights before they're emailed. Optional. |
 | `notify.py` | Emails deals you haven't been told about. Delivery, once. |
-| `backup.py` | Dated, WAL-safe snapshot of the DB after each collect. |
+| `backup.py` | Dated, WAL-safe DB snapshot after each collect, locally and in iCloud Drive. |
 | `health.py` | Alarm (macOS notification, email if set up) when a day of collection is missed. |
 | `simulate.py` | Synthetic history, for exercising the model with no data. |
 | `test_pipeline.py` | Token-free checks of parse -> baseline -> detect. |
