@@ -30,6 +30,7 @@ Last reviewed: 2026-10-02
 - [ ] Tune thresholds in `config.py` against real distributions, not `simulate.py` output.
 - [ ] Turn on `notify.py` email once false positives are acceptable.
 - [x] Google Flights re-check (`verify.py`, venv in `.venv`), built 2026-10-02. Each alert shows the live price.
+- [x] Zomunk quality bar in the re-check (2026-10-02): self-transfers excluded; airline and connecting airports shown on each alert. Checked bags can't be verified with the free scraper; transit-visa rules aren't encoded (the connections are shown instead).
 - [ ] Compare re-check prices against real deals, then decide whether to turn on `VERIFY_SUPPRESS_GONE`.
 - **Exit:** a real deal alert you'd act on.
 

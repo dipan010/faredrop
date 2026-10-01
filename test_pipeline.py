@@ -460,6 +460,47 @@ def main():
         check("no scraper installed is a clean skip",
               r12["status"].startswith("unavailable") and r12["checked"] == 0)
 
+        print("\nreading the Google Flights page")
+        # Shaped like the page seen on 2026-10-02: leg = [.., .., .., from,
+        # name, name, to, ...]; item = [[type, airlines, legs], [[_, price]]].
+        def leg(a, b):
+            return [None, None, None, a, "", "", b]
+
+        def item(price, airline, *stops):
+            path = ["BLR", *stops, "KUL"]
+            legs = [leg(x, y) for x, y in zip(path, path[1:])]
+            return [["X", [airline], legs], [[None, price]] if price else []]
+        page = [None, None,
+                [[item(32680, "AirAsia"), item(33151, "IndiGo")]],
+                [[item(40865, "IndiGo", "MAA"), item(None, "Singapore"),
+                  ["garbage"]]]]
+        best = verify.cheapest(page)
+        check("the cheapest fare is found in either list, not just data[3]",
+              best == {"price": 32680, "airline": "AirAsia", "via": []})
+        page[2] = [[item(45000, "IndiGo")]]
+        check("connections are read from the legs",
+              verify.cheapest(page)["via"] == ["MAA"])
+        check("priceless and malformed results are skipped, not fatal",
+              verify.cheapest([None, None, None,
+                               [[item(None, "X"), ["garbage"],
+                                 item(50000, "Y")]]])["price"] == 50000)
+        try:
+            verify.cheapest([None, None, None, [[item(None, "X")]]])
+            ok = False
+        except RuntimeError:
+            ok = True
+        check("a page with no priced fare at all is an error", ok)
+
+        c11 = db.connect(str(Path(tmp) / "verify3.db"))
+        put(c11, 1, price=12000.0)
+        verify.run(c11, fetch=lambda d: {"price": 13000, "airline": "IndiGo",
+                                         "via": ["MAA"]}, pause=0)
+        box11 = []
+        notify.run(c11, sender=box11.append)
+        check("the alert names the airline and where it connects",
+              "₹13,000 on IndiGo via MAA -- still a deal"
+              in box11[0].get_body(preferencelist=("plain",)).get_content())
+
         print("\ndigest recency")
         c7.execute("UPDATE deal SET detected_at = ? WHERE price = 14000.0",
                    (at(30),))

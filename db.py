@@ -126,6 +126,8 @@ CREATE TABLE IF NOT EXISTS deal (
     notified_at   TEXT,             -- stamped only on a SUCCESSFUL send
     gf_price      REAL,             -- live Google Flights price at re-check
     gf_status     TEXT,             -- 'still' | 'gone' | 'skipped' | 'error'
+    gf_airline    TEXT,
+    gf_via        TEXT,             -- connecting airports, '' = non-stop
     gf_checked_at TEXT,
     reviewed      INTEGER NOT NULL DEFAULT 0,
     UNIQUE (observation_id)
@@ -149,6 +151,8 @@ MIGRATIONS = [
     ("deal", "gf_price", "REAL"),
     ("deal", "gf_status", "TEXT"),
     ("deal", "gf_checked_at", "TEXT"),
+    ("deal", "gf_airline", "TEXT"),
+    ("deal", "gf_via", "TEXT"),
 ]
 
 

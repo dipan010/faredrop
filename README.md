@@ -216,14 +216,19 @@ is how you teach someone to ignore a channel.
 
 The feed's price can be up to 48 hours old by the time it is flagged, so
 before emailing, `verify.py` looks each deal up on Google Flights: same
-dates, cabin and stop limit, 1 adult, INR. Each alert then says one of:
-*Google Flights now ₹X -- still a deal*, *may already be gone*, or *not
-re-checked*. "Still a deal" means the live price clears the same gates
+dates, cabin and stop limit, 1 adult, INR, self-transfers excluded (Zomunk's
+bar). Each alert then says one of: *Google Flights now ₹X on <airline> via
+<airports> -- still a deal*, *may already be gone*, or *not re-checked*. The
+connecting airports are what you need to judge a transit visa; the rules
+themselves aren't encoded. Checked bags aren't verified: the scraper's bag
+filter was tried and didn't move the price, so it would be an empty claim. "Still a deal" means the live price clears the same gates
 `detect.py` uses (`DEAL_RATIO`, `MIN_ABS_SAVING`); there is no separate
 threshold.
 
 It uses [fast-flights](https://github.com/AWeirdDev/fast-flights), an
-unofficial scraper. It is free, but against Google's terms and liable to
+unofficial scraper, for the fetch only. The page is read by `verify.cheapest`,
+because the library reads one of Google's two result lists and missed the
+cheapest fare in testing. It is free, but against Google's terms and liable to
 break or be blocked, so it runs at most `VERIFY_MAX_PER_RUN` lookups a day
 with a pause between them, stops at the first failure, and is never fatal.
 It needs Python 3.10+, which the system `python3` launchd uses is not, so it

@@ -111,13 +111,19 @@ def _line(d, airlines, airports):
 
 def _recheck(d):
     """What verify.py found on Google Flights, in one line."""
-    status = d["gf_status"] if "gf_status" in d.keys() else None
+    get = lambda k: d[k] if k in d.keys() else None
+    status = get("gf_status")
+    if status not in ("still", "gone"):
+        return "  not re-checked on Google Flights"
+    via = get("gf_via")
+    route = ("" if via is None else
+             " non-stop" if via == "" else f" via {via.replace(',', ', ')}")
+    found = (f"{rupees(get('gf_price'))}"
+             + (f" on {get('gf_airline')}" if get("gf_airline") else "")
+             + route)
     if status == "still":
-        return f"  Google Flights now {rupees(d['gf_price'])} -- still a deal"
-    if status == "gone":
-        return (f"  ! Google Flights now {rupees(d['gf_price'])}"
-                " -- may already be gone")
-    return "  not re-checked on Google Flights"
+        return f"  Google Flights now {found} -- still a deal"
+    return f"  ! Google Flights now {found} -- may already be gone"
 
 
 def compose(deals, airlines=None, airports=None):
