@@ -23,6 +23,23 @@ if [ -z "${TRAVEL_PAYOUTS_API_KEY:-}" ]; then
 fi
 echo "=== $(date -u +%FT%TZ) faredrop daily"
 
+# A run missed during sleep fires the moment the Mac wakes, usually before
+# Wi-Fi is back. api.py's retries span seconds, so without this wait the
+# whole day's collection fails on a laptop that is about to be online. Any
+# HTTP answer counts as up; only a DNS or connection failure means wait.
+NET_URL=${FAREDROP_NET_URL:-https://api.travelpayouts.com}
+NET_WAIT=${FAREDROP_NET_WAIT:-300}     # seconds; then try anyway
+waited=0
+until /usr/bin/curl -s -o /dev/null --max-time 5 "$NET_URL"; do
+  if [ "$waited" -ge "$NET_WAIT" ]; then
+    echo "network still down after ${waited}s -- collecting anyway" >&2
+    break
+  fi
+  sleep 10
+  waited=$((waited + 10))
+done
+if [ "$waited" -gt 0 ]; then echo "waited ${waited}s for the network"; fi
+
 # Collection first and separately: if it fails we still want to know, but a
 # modelling error must never stop tomorrow's collection from being attempted.
 "$PY" collect.py || echo "collect failed (rc=$?) -- history may have a gap" >&2

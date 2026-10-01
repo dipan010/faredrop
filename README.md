@@ -255,7 +255,10 @@ catches it.
 
 launchd rather than cron for one reason: if the laptop is asleep at 07:15,
 launchd runs the job on wake, whereas cron drops it. A dropped day is history
-that can't be recovered.
+that can't be recovered. That catch-up run starts the moment the Mac wakes, usually before
+Wi-Fi is back, so `daily.sh` first waits up to 5 minutes for the API host to
+answer. Nothing runs while the Mac is asleep, and launchd doesn't catch up
+after a shutdown; `health.py` reports either gap on the next run.
 
 The token lives in `~/.faredrop.env` because launchd starts with a near-empty
 environment and won't inherit a shell export. Without it `daily.sh` exits 78
