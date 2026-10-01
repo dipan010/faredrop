@@ -13,13 +13,14 @@ cd "$(dirname "$0")"
 # inherited. Keep the token in this file (chmod 600) or in ~/.faredrop.env.
 [ -f ~/.faredrop.env ] && source ~/.faredrop.env
 
+PY=$(command -v python3)
+
 if [ -z "${TRAVELPAYOUTS_TOKEN:-}" ]; then
   echo "$(date -u +%FT%TZ)  FATAL: TRAVELPAYOUTS_TOKEN not set" >&2
   echo "  put it in ~/.faredrop.env as: export TRAVELPAYOUTS_TOKEN=..." >&2
+  "$PY" health.py  # a run that can't collect must still raise the alarm
   exit 78          # EX_CONFIG -- launchd won't thrash-retry on this
 fi
-
-PY=$(command -v python3)
 echo "=== $(date -u +%FT%TZ) faredrop daily"
 
 # Collection first and separately: if it fails we still want to know, but a
@@ -40,3 +41,6 @@ fi
 # run look like collection failed. notify.py exits 0 when SMTP is unset and
 # stamps deals only on a successful send, so a bad day retries tomorrow.
 "$PY" notify.py
+
+# Last, so it judges what actually reached the database today.
+"$PY" health.py

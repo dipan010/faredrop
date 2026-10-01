@@ -22,6 +22,7 @@ import config
 import db
 import detect
 import digest
+import health
 
 SAMPLE = {
     "success": True,
@@ -565,6 +566,33 @@ def main():
               snap.execute("SELECT count(*) FROM raw_response").fetchone()[0] == 1)
         check("old snapshots pruned to keep", len(backup.snapshots(bdir)) == 3)
         check("no temp file left behind", not list(bdir.glob("*.tmp")))
+
+        print("\nmissed-day alarm")
+        from datetime import date as _date
+        ch = db.connect(str(Path(tmp) / "health.db"))
+        check("never collected is a problem", len(health.check(ch)) == 1)
+        for day in ("2026-03-01", "2026-03-02", "2026-03-06"):
+            db.save_raw(ch, collect.ENDPOINT, {}, 200, f"{day}T01:45:00+00:00",
+                        "{}")
+        db.save_raw(ch, "/v1/city-directions", {}, 200,
+                    "2026-03-04T01:45:00+00:00", "{}")
+        ch.commit()
+        check("a normal day is healthy",
+              health.check(ch, today=_date(2026, 3, 2)) == [])
+        check("a day with nothing collected is flagged",
+              any("no collection today" in p
+                  for p in health.check(ch, today=_date(2026, 3, 3))))
+        gap = health.check(ch, today=_date(2026, 3, 6))
+        check(f"a gap is reported with its span ({gap})",
+              gap == ["missed 3 day(s): 2026-03-03 to 2026-03-05 "
+                      "-- that history is gone"])
+        check("other endpoints don't count as collecting",
+              "2026-03-04" not in health.collected_days(ch))
+        db.save_raw(ch, collect.ENDPOINT, {}, 200,
+                    "2026-03-07T01:45:00+00:00", "{}")
+        ch.commit()
+        check("and it is reported once: the next day is clean",
+              health.check(ch, today=_date(2026, 3, 7)) == [])
 
         print("\nguards")
         check("empty route list exits with instructions",

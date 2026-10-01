@@ -67,6 +67,7 @@ python3 notify.py                 # email anything you haven't been told about
 | `verify.py` | Re-checks pending deals on Google Flights before they're emailed. Optional. |
 | `notify.py` | Emails deals you haven't been told about. Delivery, once. |
 | `backup.py` | Dated, WAL-safe snapshot of the DB after each collect. |
+| `health.py` | Alarm (macOS notification, email if set up) when a day of collection is missed. |
 | `simulate.py` | Synthetic history, for exercising the model with no data. |
 | `test_pipeline.py` | Token-free checks of parse -> baseline -> detect. |
 
@@ -236,6 +237,16 @@ gets its own venv:
 `daily.sh` runs it only if `.venv/bin/python` exists. Deals marked gone are
 still sent until `VERIFY_SUPPRESS_GONE` is turned on, which should wait until
 real deals show how often the two sources disagree.
+
+### When a day is missed
+
+`health.py` runs last in every daily run and compares what reached the
+database with the calendar. If today's collection stored nothing, or there
+are days with no collection between the last one and today (the laptop was
+off, the token expired), it posts a macOS notification and, once SMTP is set,
+an email. A gap is reported once, on the first run after it. Nothing can
+alarm on a day when nothing runs at all; launchd's run on wake is what
+catches it.
 
 launchd rather than cron for one reason: if the laptop is asleep at 07:15,
 launchd runs the job on wake, whereas cron drops it. A dropped day is history
