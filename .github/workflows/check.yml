@@ -1,0 +1,33 @@
+# Tests on every push, plus one live call with the repository secret to
+# prove the key works and the parser still fits the API. Collection itself
+# runs on the laptop (launchd); nothing here writes data or keeps history.
+name: check
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # 3.9 is what launchd runs on the laptop (/usr/bin/python3); the oldest
+      # interpreter the collector has to support.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Token-free tests
+        run: python3 test_pipeline.py
+
+      - name: Live API smoke test
+        env:
+          TRAVEL_PAYOUTS_API_KEY: ${{ secrets.TRAVEL_PAYOUTS_API_KEY }}
+        run: python3 smoke.py

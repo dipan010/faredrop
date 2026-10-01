@@ -15,9 +15,9 @@ cd "$(dirname "$0")"
 
 PY=$(command -v python3)
 
-if [ -z "${TRAVELPAYOUTS_TOKEN:-}" ]; then
-  echo "$(date -u +%FT%TZ)  FATAL: TRAVELPAYOUTS_TOKEN not set" >&2
-  echo "  put it in ~/.faredrop.env as: export TRAVELPAYOUTS_TOKEN=..." >&2
+if [ -z "${TRAVEL_PAYOUTS_API_KEY:-}" ]; then
+  echo "$(date -u +%FT%TZ)  FATAL: TRAVEL_PAYOUTS_API_KEY not set" >&2
+  echo "  put it in ~/.faredrop.env as: export TRAVEL_PAYOUTS_API_KEY=..." >&2
   "$PY" health.py  # a run that can't collect must still raise the alarm
   exit 78          # EX_CONFIG -- launchd won't thrash-retry on this
 fi

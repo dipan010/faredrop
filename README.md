@@ -19,7 +19,7 @@ the filters and the alerts get built while it accumulates.
 ## Setup
 
 1. Get a free token at https://www.travelpayouts.com/developers/api
-2. `export TRAVELPAYOUTS_TOKEN=your_token_here`
+2. `export TRAVEL_PAYOUTS_API_KEY=your_token_here`
 3. Set your home airport in `config.py` (`ORIGINS`)
 
 ```sh
@@ -178,7 +178,7 @@ depend on you remembering. `daily.sh` runs collect -> baseline -> detect ->
 digest; the launchd job runs it at 07:15.
 
 ```sh
-echo 'export TRAVELPAYOUTS_TOKEN=...' > ~/.faredrop.env && chmod 600 ~/.faredrop.env
+echo 'export TRAVEL_PAYOUTS_API_KEY=...' > ~/.faredrop.env && chmod 600 ~/.faredrop.env
 cp com.dipanghosh.faredrop.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.dipanghosh.faredrop.plist
 ```

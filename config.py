@@ -10,7 +10,7 @@ import os
 # --- credentials -------------------------------------------------------
 
 # Get one at https://www.travelpayouts.com/developers/api
-TOKEN = os.environ.get("TRAVELPAYOUTS_TOKEN", "")
+TOKEN = os.environ.get("TRAVEL_PAYOUTS_API_KEY", "")
 
 # --- what we watch -----------------------------------------------------
 

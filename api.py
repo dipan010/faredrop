@@ -48,9 +48,9 @@ def get(path, params=None, conn=None, need_token=True, retries=3):
     if need_token:
         if not config.TOKEN:
             raise ApiError(
-                "TRAVELPAYOUTS_TOKEN is not set.\n"
+                "TRAVEL_PAYOUTS_API_KEY is not set.\n"
                 "  Sign up at https://www.travelpayouts.com/developers/api\n"
-                "  then: export TRAVELPAYOUTS_TOKEN=your_token_here"
+                "  then: export TRAVEL_PAYOUTS_API_KEY=your_token_here"
             )
         params.setdefault("currency", config.CURRENCY)
 

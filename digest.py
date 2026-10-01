@@ -46,7 +46,7 @@ def status(conn):
         print(f"  collecting since    {c['first_observation']}")
     else:
         print(f"\n  {AMBER}No observations yet.{RESET}")
-        print("  Set TRAVELPAYOUTS_TOKEN, then run: python3 collect.py")
+        print("  Set TRAVEL_PAYOUTS_API_KEY, then run: python3 collect.py")
         return False
 
     rows = baseline.coverage(conn)
