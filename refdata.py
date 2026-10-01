@@ -95,6 +95,26 @@ def seed_destinations():
                 " DO UPDATE SET popularity = excluded.popularity",
                 (origin, dest, rank),
             )
+        # Hand-picked routes, after the ranked ones so they sort behind them
+        # for the scheduler but are never left out.
+        seen = {p["code"] for p in picks}
+        for dest in config.EXTRA_DESTINATIONS.get(origin, []):
+            if dest in seen:
+                continue
+            rank = len(picks)
+            picks.append({
+                "code": dest,
+                "name": airports.get(dest, {}).get("name", dest),
+                "country": airports.get(dest, {}).get("country"),
+                "seen_price": None,
+            })
+            conn.execute(
+                "INSERT INTO route (origin, destination, popularity)"
+                " VALUES (?,?,?)"
+                " ON CONFLICT (origin, destination)"
+                " DO UPDATE SET popularity = excluded.popularity, active = 1",
+                (origin, dest, rank),
+            )
         out[origin] = picks
     conn.commit()
     Path(config.DESTINATIONS_FILE).write_text(json.dumps(out, indent=2))

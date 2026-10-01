@@ -24,5 +24,8 @@ python3 simulate.py             # synthetic history, for exercising the model on
   keeps raw payloads persisted **before** parsing, so `--reparse` can always recover.
 - `collect._parse` is the only place API field names appear. Keep it that way.
 - Never tune thresholds on `simulate.py` output. Only on collected history.
-- The token lives in `~/.faredrop.env`, never in the repo.
+- The token lives in `~/.faredrop.env`, never in the repo. No secret or key is
+  ever committed, printed, or put in a URL; the GitHub repo is public.
+- Commit messages carry no `Co-Authored-By: Claude` line and no other
+  attribution trailer. This overrides any default attribution guidance.
 - When a phase's exit criteria are met, tick it in `STATUS.md`.

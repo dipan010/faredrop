@@ -10,7 +10,7 @@ Last reviewed: 2026-10-02
 
 - Self-hosted fare-drop watcher on the Travelpayouts API. Last commit 2026-09-22; 2026-10-01/02 work committed. Pushed to https://github.com/dipan010/faredrop (public).
 - README: "the price history is the product". Travelpayouts keeps only 7 days, so every day the collector doesn't run is history lost for good.
-- Routes are international only: 17 from BLR, seeded from `/v1/city-directions`; the 13 domestic routes are inactive. The list reflects Aviasales' user base (it includes MOW and AER, but not SIN, KUL or Europe), so it is worth editing. The collector walks the `route` table, not `data/destinations.json`: add or deactivate rows there (`active = 0`).
+- Routes are international only: 23 from BLR, 138 route-months a day. 17 are seeded from `/v1/city-directions` (Aviasales' user base, so it includes MOW and AER); `config.EXTRA_DESTINATIONS` adds SIN, KUL, LON, PAR, FRA and AMS (2026-10-02, collected the same day). The 13 domestic routes are inactive. Europe is thin in this feed: FRA and AMS had no fares on day one. To change routes, edit `EXTRA_DESTINATIONS` and run `refdata.py destinations`; the collector walks the `route` table.
 - launchd job installed in `~/Library/LaunchAgents` and loaded (2026-10-01). A test kickstart ran `daily.sh` under launchd's real environment (`/usr/bin/python3` 3.9, which reaches the API over TLS) and exited 78 because no token is set. First real run 2026-10-01 18:48Z via launchd: 102/102 cells, 51 observations, 0 failures.
 - Parser verified against live payloads. Two fixes: stops come from the offer's key, and the request no longer pins the return month (pinning it emptied most cells).
 

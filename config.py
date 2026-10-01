@@ -22,6 +22,17 @@ DESTINATIONS_FILE = "data/destinations.json"
 
 MAX_DESTINATIONS = 40
 
+# Watched whatever the popularity feed says. /v1/city-directions reflects
+# Aviasales' own user base -- it offers MOW and AER from BLR but not SIN or
+# anywhere in Europe -- so the routes that matter to you go here by hand.
+EXTRA_DESTINATIONS = {
+    "BLR": ["SIN", "KUL",                      # SE Asia hubs, added 2026-10-02
+            "LON", "PAR", "FRA", "AMS"],       # Europe, added 2026-10-02
+}
+# City codes (LON, PAR) rather than airports (LHR, CDG): the feed files most
+# fares under the city, and Google Flights accepts both. Europe is thin in
+# this feed -- on 2026-10-02 FRA and AMS had no fares in any month.
+
 # How many departure months ahead to track. Each (route, month) pair is one
 # cell of the price distribution we are building.
 MONTHS_AHEAD = 6
