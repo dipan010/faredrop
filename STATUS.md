@@ -8,7 +8,7 @@ Last reviewed: 2026-10-02
 
 ## Where it stands
 
-- Self-hosted fare-drop watcher on the Travelpayouts API. Last commit 2026-09-22; 2026-10-01/02 work committed. No remote.
+- Self-hosted fare-drop watcher on the Travelpayouts API. Last commit 2026-09-22; 2026-10-01/02 work committed. Pushed to https://github.com/dipan010/faredrop (public).
 - README: "the price history is the product". Travelpayouts keeps only 7 days, so every day the collector doesn't run is history lost for good.
 - Routes are international only: 17 from BLR, seeded from `/v1/city-directions`; the 13 domestic routes are inactive. The list reflects Aviasales' user base (it includes MOW and AER, but not SIN, KUL or Europe), so it is worth editing. The collector walks the `route` table, not `data/destinations.json`: add or deactivate rows there (`active = 0`).
 - launchd job installed in `~/Library/LaunchAgents` and loaded (2026-10-01). A test kickstart ran `daily.sh` under launchd's real environment (`/usr/bin/python3` 3.9, which reaches the API over TLS) and exited 78 because no token is set. First real run 2026-10-01 18:48Z via launchd: 102/102 cells, 51 observations, 0 failures.
@@ -37,7 +37,7 @@ Last reviewed: 2026-10-02
 ### Phase 3 — Backup and robustness
 - [x] Daily local DB snapshot: `backup.py` runs in `daily.sh` after collect and keeps 14 copies in `backups/`. It uses the SQLite backup API, so it is WAL-safe.
 - [ ] Off-machine copy (set `BACKUP_DIR` in `config.py`). Local snapshots don't meet the exit criterion below.
-- [ ] Private GitHub remote for code.
+- [x] GitHub remote for code: https://github.com/dipan010/faredrop. It is **public**, so the DB, backups and any secrets must stay git-ignored (they are).
 - [x] Alert if the collector misses a day: `health.py` (macOS notification; email once SMTP is set), 2026-10-02.
 - **Exit:** losing the laptop doesn't lose the history.
 
