@@ -38,6 +38,7 @@ Last reviewed: 2026-10-02
 - [x] Daily local DB snapshot: `backup.py` runs in `daily.sh` after collect and keeps 14 copies in `backups/`. It uses the SQLite backup API, so it is WAL-safe.
 - [ ] Off-machine copy (set `BACKUP_DIR` in `config.py`). Local snapshots don't meet the exit criterion below.
 - [x] GitHub remote for code: https://github.com/dipan010/faredrop. It is **public**, so the DB, backups and any secrets must stay git-ignored (they are).
+- [x] CI (`.github/workflows/check.yml`): tests on Python 3.9 plus a live `smoke.py` call using the `TRAVEL_PAYOUTS_API_KEY` repository secret; first run green on 2026-10-02.
 - [x] Alert if the collector misses a day: `health.py` (macOS notification; email once SMTP is set), 2026-10-02.
 - **Exit:** losing the laptop doesn't lose the history.
 
