@@ -45,6 +45,7 @@ nothing.
 python3 collect.py                # walk routes, write observations
 python3 baseline.py               # recompute distributions
 python3 detect.py                 # flag drops + mistake-fare candidates
+.venv/bin/python verify.py        # optional: re-check them on Google Flights
 python3 digest.py                 # what's worth looking at today
 python3 notify.py                 # email anything you haven't been told about
 ```
@@ -63,7 +64,9 @@ python3 notify.py                 # email anything you haven't been told about
 | `baseline.py` | The price model: distinct quotes, booking horizon, log space. |
 | `detect.py` | Flags fares below the baseline. |
 | `digest.py` | The review queue -- deals plus how ready the data is. |
+| `verify.py` | Re-checks pending deals on Google Flights before they're emailed. Optional. |
 | `notify.py` | Emails deals you haven't been told about. Delivery, once. |
+| `backup.py` | Dated, WAL-safe snapshot of the DB after each collect. |
 | `simulate.py` | Synthetic history, for exercising the model with no data. |
 | `test_pipeline.py` | Token-free checks of parse -> baseline -> detect. |
 
@@ -207,6 +210,32 @@ digest twice cannot double-send. Repeat suppression happens earlier, in
 `ALERT_SUPPRESS_DAYS` unless it has got `ALERT_IMPROVE_PCT` cheaper. A fare
 falling from ₹18k to ₹15k is news; the same ₹18k on a third consecutive day
 is how you teach someone to ignore a channel.
+
+### The live re-check
+
+The feed's price can be up to 48 hours old by the time it is flagged, so
+before emailing, `verify.py` looks each deal up on Google Flights: same
+dates, cabin and stop limit, 1 adult, INR. Each alert then says one of:
+*Google Flights now ₹X -- still a deal*, *may already be gone*, or *not
+re-checked*. "Still a deal" means the live price clears the same gates
+`detect.py` uses (`DEAL_RATIO`, `MIN_ABS_SAVING`); there is no separate
+threshold.
+
+It uses [fast-flights](https://github.com/AWeirdDev/fast-flights), an
+unofficial scraper. It is free, but against Google's terms and liable to
+break or be blocked, so it runs at most `VERIFY_MAX_PER_RUN` lookups a day
+with a pause between them, stops at the first failure, and is never fatal.
+It needs Python 3.10+, which the system `python3` launchd uses is not, so it
+gets its own venv:
+
+```sh
+/opt/homebrew/bin/python3 -m venv .venv
+.venv/bin/pip install -r requirements-verify.txt
+```
+
+`daily.sh` runs it only if `.venv/bin/python` exists. Deals marked gone are
+still sent until `VERIFY_SUPPRESS_GONE` is turned on, which should wait until
+real deals show how often the two sources disagree.
 
 launchd rather than cron for one reason: if the laptop is asleep at 07:15,
 launchd runs the job on wake, whereas cron drops it. A dropped day is history

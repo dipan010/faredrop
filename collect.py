@@ -34,8 +34,10 @@ import db
 # The endpoint and its parameters, in one place. /v1/prices/cheap takes a
 # YYYY-MM for depart_date/return_date and answers with the cheapest fares
 # found for that month, which is exactly one cell of the distribution we are
-# building. Supplying return_date keeps us on round-trips, matching the
-# baseline's unit.
+# building. It answers with round-trips by default. return_date is left out
+# on purpose: setting it to the departure month only admits trips that come
+# back within that month, which on 2026-10-01 emptied BLR->DXB/SIN/DPS for
+# November while the same calls without it each returned a round-trip.
 ENDPOINT = "/v1/prices/cheap"
 PAUSE_SEC = 1.0          # api.py retries with backoff; don't make it need to
 
@@ -63,11 +65,11 @@ def _day(value):
 
 
 # --- parsing -----------------------------------------------------------
-# UNVERIFIED against a live response: raw/ is empty and raw_response has no
-# rows, so the field names below come from the documented shape, not from
-# something observed. Run `python3 probe.py BLR DXB` (or this file's
-# --show-keys) and correct this function before trusting the numbers. It is
-# deliberately the ONLY place in the collector that names an API field.
+# Checked against a live response on 2026-10-01 (BLR->DXB). An offer carries
+# airline, departure_at, return_at, expires_at, price, flight_number and
+# durations -- no stop count: that is the key the offer is filed under ("0"
+# non-stop, "1" one stop). Deliberately the ONLY place in the collector that
+# names an API field.
 
 def _parse(payload, origin, destination, fetched_at):
     """Payload -> rows ready for fare_observation. Never raises on shape."""
@@ -83,7 +85,7 @@ def _parse(payload, origin, destination, fetched_at):
         return []
 
     rows = []
-    for offer in offers.values():
+    for key, offer in offers.items():
         if not isinstance(offer, dict):
             continue
         price = offer.get("price") or offer.get("value")
@@ -103,7 +105,9 @@ def _parse(payload, origin, destination, fetched_at):
             "depart_month": depart[:7],
             "trip_class": int(offer.get("trip_class") or 0),
             "stops": offer.get("number_of_changes",
-                               offer.get("transfers")),
+                               offer.get("transfers",
+                                         int(key) if str(key).isdigit()
+                                         else None)),
             "price": float(price),
             "currency": config.CURRENCY,
             "airline": offer.get("airline"),
@@ -184,7 +188,7 @@ def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None):
             payload, fetched_at = api.get(
                 ENDPOINT,
                 {"origin": origin, "destination": destination,
-                 "depart_date": month, "return_date": month},
+                 "depart_date": month},
                 conn=conn,
             )
             # The raw body is now in the transaction. Commit it before the

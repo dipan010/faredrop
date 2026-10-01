@@ -25,11 +25,13 @@ def now_iso():
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
 
 
-def _fetch(url, timeout=30):
-    req = urllib.request.Request(url, headers={
-        "Accept-Encoding": "gzip, deflate",
-        "User-Agent": UA,
-    })
+def _fetch(url, timeout=30, token=None):
+    headers = {"Accept-Encoding": "gzip, deflate", "User-Agent": UA}
+    if token:
+        # A header, not ?token=: a URL ends up in exception text, logs and
+        # proxies, and the token must never be written anywhere.
+        headers["X-Access-Token"] = token
+    req = urllib.request.Request(url, headers=headers)
     with urllib.request.urlopen(req, timeout=timeout) as resp:
         raw = resp.read()
         if resp.headers.get("Content-Encoding") == "gzip":
@@ -50,7 +52,6 @@ def get(path, params=None, conn=None, need_token=True, retries=3):
                 "  Sign up at https://www.travelpayouts.com/developers/api\n"
                 "  then: export TRAVELPAYOUTS_TOKEN=your_token_here"
             )
-        params["token"] = config.TOKEN
         params.setdefault("currency", config.CURRENCY)
 
     url = f"{BASE}{path}?" + urllib.parse.urlencode(params)
@@ -58,7 +59,8 @@ def get(path, params=None, conn=None, need_token=True, retries=3):
     last = None
     for attempt in range(retries):
         try:
-            status, body = _fetch(url)
+            status, body = _fetch(
+                url, token=config.TOKEN if need_token else None)
             break
         except Exception as exc:              # noqa: BLE001 - retry anything transient
             last = exc

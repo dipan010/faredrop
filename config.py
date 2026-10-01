@@ -147,6 +147,25 @@ ALERT_IMPROVE_PCT = 0.10
 # pinned to the top of the list forever.
 DIGEST_WINDOW_DAYS = 7
 
+# --- the live re-check -------------------------------------------------
+# Before an alert goes out, verify.py looks the deal up on Google Flights and
+# records the live price, standing in for the human who checks a candidate
+# before it is published. It uses fast-flights, an unofficial scraper: free,
+# against Google's terms, and liable to break or be blocked. So it is run
+# gently, is never fatal, and a deal it could not check is still sent.
+
+# Lookups per daily run, and the pause between them. Each pending deal is a
+# lookup, so this caps the load on Google, not the number of deals.
+VERIFY_MAX_PER_RUN = 10
+VERIFY_PAUSE_SECONDS = 5
+# A deal already re-checked within this many hours is not looked up again.
+VERIFY_RECHECK_HOURS = 20
+# Hold back deals the re-check says are gone. OFF until real deals show how
+# often Google Flights and Travelpayouts disagree: the scraper returns
+# Google's short "best" list, which may omit the cheapest fare, and an alert
+# wrongly dropped is worse than one sent with a warning on it.
+VERIFY_SUPPRESS_GONE = False
+
 # SMTP, from the environment only -- never checked in. Put them in
 # ~/.faredrop.env (chmod 600), which daily.sh sources; launchd inherits no
 # shell environment of its own. Gmail needs an app-specific password.

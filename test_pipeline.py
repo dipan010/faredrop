@@ -12,10 +12,12 @@ from pathlib import Path
 import math
 from datetime import datetime, timedelta, timezone
 
+import backup
 import baseline
 import collect
 import notify
 import schedule
+import verify
 import config
 import db
 import detect
@@ -38,6 +40,16 @@ SAMPLE = {
         }
     },
 }
+
+# The shape actually observed on 2026-10-01: no stop field on the offer, the
+# stop count is the key it sits under.
+LIVE = {"success": True, "currency": "inr", "data": {"DXB": {
+    "0": {"airline": "EK", "departure_at": "2026-11-27T10:25:00+05:30",
+          "return_at": "2026-12-05T13:35:00+04:00", "price": 43237,
+          "flight_number": 565, "duration": 455},
+    "1": {"airline": "GF", "departure_at": "2026-11-27T05:00:00+05:30",
+          "return_at": "2026-12-05T07:45:00+04:00", "price": 29254,
+          "flight_number": 283, "duration": 1220}}}}
 
 
 def check(label, cond):
@@ -81,6 +93,12 @@ def main():
     check("unparseable payload is empty, not an error",
           collect._parse({"data": []}, "BLR", "DXB", "x") == []
           and collect._parse(None, "BLR", "DXB", "x") == [])
+    live = {x["airline"]: x for x in collect._parse(LIVE, "BLR", "DXB", at(0))}
+    check("live shape: stops come from the offer's key",
+          live["EK"]["stops"] == 0 and live["GF"]["stops"] == 1)
+    check("live shape: a return month later than departure is kept",
+          live["GF"]["return_date"] == "2026-12-05"
+          and live["GF"]["depart_month"] == "2026-11")
 
     with tempfile.TemporaryDirectory() as tmp:
         conn = db.connect(str(Path(tmp) / "t.db"))
@@ -372,6 +390,75 @@ def main():
               c8.execute("SELECT count(*) FROM deal"
                          " WHERE notified_at IS NULL").fetchone()[0] == 3)
 
+        print("\nthe live re-check")
+        # Offline: the Google Flights lookup is injected, like notify's sender.
+        c9 = db.connect(str(Path(tmp) / "verify.db"))
+
+        def put(conn, i, depart=far7, ret=far7, price=12000.0):
+            conn.execute(
+                "INSERT INTO deal (observation_id, origin, destination,"
+                " depart_date, return_date, trip_class, price, baseline_p50,"
+                " discount_pct, kind, flags, fingerprint, detected_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (i, "BLR", "DXB", depart, ret, 0, price, 30000.0, 60.0,
+                 "drop", "[]", f"v{i}", at(1)))
+            conn.commit()
+
+        def status_of(i):
+            return c9.execute("SELECT gf_status, gf_price FROM deal"
+                              " WHERE observation_id=?", (i,)).fetchone()
+
+        put(c9, 1, price=12000.0)
+        put(c9, 2, price=12500.0)
+        put(c9, 3, ret=None)
+        live = {12000.0: 13000, 12500.0: 26000}
+        r9 = verify.run(c9, fetch=lambda d: live[d["price"]], pause=0)
+        check("a fare still well below expected stays a deal",
+              tuple(status_of(1)) == ("still", 13000.0))
+        check("one that has climbed back is marked gone",
+              status_of(2)["gf_status"] == "gone")
+        check("an itinerary without both dates is skipped, not guessed",
+              status_of(3)["gf_status"] == "skipped" and r9["checked"] == 2)
+        again9 = verify.run(c9, fetch=lambda d: 1 / 0, pause=0)
+        check("a deal checked recently is not looked up again",
+              again9["checked"] == 0 and again9["status"] == "ok")
+
+        box9 = []
+        notify.run(c9, sender=box9.append)
+        body9 = box9[0].get_body(preferencelist=("plain",)).get_content()
+        check("the alert carries the live price",
+              "Google Flights now ₹13,000 -- still a deal" in body9)
+        check("a gone deal is still sent while suppression is off, flagged",
+              "may already be gone" in body9 and "12,500" in body9)
+        check("an unchecked one says so",
+              "not re-checked on Google Flights" in body9)
+
+        c9 = db.connect(str(Path(tmp) / "verify2.db"))
+        for i in range(5):
+            put(c9, 10 + i, price=12000.0 + i)
+        calls = []
+
+        def blocked(d):
+            calls.append(d)
+            raise RuntimeError("429 Too Many Requests")
+        r10 = verify.run(c9, fetch=blocked, pause=0)
+        check("the first failure ends the run instead of retrying",
+              len(calls) == 1 and r10["status"].startswith("stopped"))
+        check("and the rest are left unchecked, not marked",
+              c9.execute("SELECT count(*) FROM deal WHERE gf_status IS NULL")
+                .fetchone()[0] == 4)
+        c9.execute("UPDATE deal SET gf_status=NULL, gf_checked_at=NULL")
+        calls.clear()
+        r11 = verify.run(c9, fetch=lambda d: calls.append(d) or 13000,
+                         limit=2, pause=0)
+        check("the per-run cap holds", len(calls) == 2 and r11["checked"] == 2)
+
+        def missing(d):
+            raise verify.Unavailable("No module named 'fast_flights'")
+        r12 = verify.run(c9, fetch=missing, pause=0)
+        check("no scraper installed is a clean skip",
+              r12["status"].startswith("unavailable") and r12["checked"] == 0)
+
         print("\ndigest recency")
         c7.execute("UPDATE deal SET detected_at = ? WHERE price = 14000.0",
                    (at(30),))
@@ -461,6 +548,23 @@ def main():
         check("an empty plan is walked, not silently replaced by everything",
               collect.run(c5, plan=[], dry_run=True,
                           pause=0)["cells_planned"] == 0)
+
+        print("\nbackup")
+        # A WAL-mode DB whose rows are still only in the -wal file: a plain
+        # file copy would lose them, the backup API must not.
+        src = str(Path(tmp) / "live.db")
+        live = db.connect(src)
+        db.save_raw(live, "e", {}, 200, "2026-01-01T00:00:00Z", "{}")
+        live.commit()
+        bdir = Path(tmp) / "bk"
+        from datetime import date
+        for i in range(5):
+            out = backup.backup(src, bdir, keep=3, today=date(2026, 1, 1 + i))
+        snap = db.connect(str(out))
+        check("snapshot carries rows still in the WAL",
+              snap.execute("SELECT count(*) FROM raw_response").fetchone()[0] == 1)
+        check("old snapshots pruned to keep", len(backup.snapshots(bdir)) == 3)
+        check("no temp file left behind", not list(bdir.glob("*.tmp")))
 
         print("\nguards")
         check("empty route list exits with instructions",

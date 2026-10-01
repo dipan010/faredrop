@@ -10,9 +10,24 @@ data/*.json
 data/*.db
 data/*.db-wal
 data/*.db-shm
+backups/
 
 # Verbatim API payloads. Large, and reproducible from the DB.
 raw/
 
 .env
+# Secrets never enter the repo. Keys live in ~/.faredrop.env (chmod 600).
+.env.*
+*.env
+secrets*
+.secrets*
+*.swp
+*.swo
+*.secret
+*.key
+*.pem
+credentials*
 .DS_Store
+
+# The re-check's own interpreter; rebuild from requirements-verify.txt.
+.venv/

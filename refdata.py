@@ -63,6 +63,18 @@ def seed_destinations():
                              {"origin": origin}, conn=conn)
         data = payload.get("data", {})
         # data: {DEST: {price, airline, flight_number, departure_at, ...}}
+        # International only, as Zomunk does. Domestic fares are the cheapest
+        # in this feed, so left in they take most of the list and the call
+        # budget, for alerts about a cheap flight to Pune.
+        home = airports.get(origin, {}).get("country")
+        domestic = [d for d in data
+                    if airports.get(d, {}).get("country") == home]
+        data = {d: v for d, v in data.items() if d not in domestic}
+        if domestic:
+            conn.executemany(
+                "UPDATE route SET active = 0"
+                " WHERE origin = ? AND destination = ?",
+                [(origin, d) for d in domestic])
         ranked = sorted(data.items(),
                         key=lambda kv: kv[1].get("price", 10**9))
         picks = []

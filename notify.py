@@ -66,10 +66,13 @@ def pending(conn, limit=25, window_days=None):
                    else window_days)
     since = (datetime.now(timezone.utc) - timedelta(days=window_days)) \
         .isoformat(timespec="seconds")
+    # Off by default -- see VERIFY_SUPPRESS_GONE in config.py.
+    gone = (" AND gf_status IS NOT 'gone'" if config.VERIFY_SUPPRESS_GONE
+            else "")
     return conn.execute(
-        """
+        f"""
         SELECT * FROM deal
-        WHERE notified_at IS NULL AND detected_at >= ?
+        WHERE notified_at IS NULL AND detected_at >= ?{gone}
         ORDER BY (kind='mistake') DESC, outlier_z DESC, discount_pct DESC
         LIMIT ?
         """, (since, limit)).fetchall()
@@ -101,8 +104,20 @@ def _line(d, airlines, airports):
         body.append("  unusually far below normal; worth looking at first")
     for flag in json.loads(d["flags"] or "[]"):
         body.append(f"  ! {flag}")
+    body.append(_recheck(d))
     body.append(f"  {booking_url(d)}")
     return head, body
+
+
+def _recheck(d):
+    """What verify.py found on Google Flights, in one line."""
+    status = d["gf_status"] if "gf_status" in d.keys() else None
+    if status == "still":
+        return f"  Google Flights now {rupees(d['gf_price'])} -- still a deal"
+    if status == "gone":
+        return (f"  ! Google Flights now {rupees(d['gf_price'])}"
+                " -- may already be gone")
+    return "  not re-checked on Google Flights"
 
 
 def compose(deals, airlines=None, airports=None):

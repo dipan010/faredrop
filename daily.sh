@@ -25,8 +25,15 @@ echo "=== $(date -u +%FT%TZ) faredrop daily"
 # Collection first and separately: if it fails we still want to know, but a
 # modelling error must never stop tomorrow's collection from being attempted.
 "$PY" collect.py || echo "collect failed (rc=$?) -- history may have a gap" >&2
+# Snapshot straight after collecting: today's fares are the irreplaceable part.
+"$PY" backup.py || echo "backup failed (rc=$?)" >&2
 "$PY" baseline.py
 "$PY" detect.py
+# The live re-check needs a newer Python and a scraper the rest doesn't, so
+# it gets its own venv. Missing or failing, alerts still go out, unchecked.
+if [ -x .venv/bin/python ]; then
+  .venv/bin/python verify.py || echo "verify failed (rc=$?) -- alerts go out unchecked" >&2
+fi
 "$PY" digest.py
 
 # Delivery last, and never fatal: a mail misconfiguration must not make the
