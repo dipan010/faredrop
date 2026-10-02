@@ -13,10 +13,17 @@ macOS lets the job write into iCloud Drive but not list it, and a listing
 that fails comes back empty without complaint -- pruning that way would
 silently never happen and the folder would grow forever.
 
+macOS also ties each iCloud file to the program that made it: the daily job
+can replace and delete its own snapshots, but not one made by a manual run
+or a test (seen 2026-10-02: "Operation not permitted"). So a snapshot that
+can't be replaced is saved under a fallback name, and one that can't be
+pruned is reported and left, rather than failing the backup.
+
     python3 backup.py            # snapshot today, prune old ones
     python3 backup.py --list
 """
 
+import os
 import sqlite3
 import sys
 from datetime import date, timedelta
@@ -47,18 +54,41 @@ def backup(src=config.DB_PATH, dest_dir=DIRS[0], keep=KEEP, today=None):
     dest_dir = Path(dest_dir)
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest = dest_dir / name(today)
-    tmp = dest.with_suffix(".db.tmp")
-    # Write to a temp name and rename, so a crash mid-backup never leaves a
-    # truncated file wearing a valid snapshot's name.
+    # A per-run temp name, renamed into place, so a crash mid-backup never
+    # leaves a truncated file wearing a valid snapshot's name, and a leftover
+    # temp from an earlier failure can't get in the way.
+    tmp = dest_dir / f".{dest.name}.{os.getpid()}.tmp"
     s, d = sqlite3.connect(src), sqlite3.connect(tmp)
     try:
         s.backup(d)
+        # One self-contained file: a WAL-mode copy grows -wal/-shm files
+        # beside it the first time anyone opens it.
+        d.execute("PRAGMA journal_mode=DELETE")
     finally:
         d.close()
         s.close()
-    tmp.replace(dest)
+    # Some SQLite builds (3.54, the system python3 launchd runs) leave an empty
+    # -shm behind even after the switch out of WAL. It holds nothing now.
+    for side in ("-wal", "-shm"):
+        try:
+            Path(f"{tmp}{side}").unlink(missing_ok=True)
+        except OSError:                     # cosmetic; never fail on it
+            pass
+    try:
+        os.replace(tmp, dest)
+    except PermissionError:
+        fallback = dest.with_name(f"{dest.stem}-{os.getpid()}.db")
+        os.replace(tmp, fallback)
+        print(f"{dest} is not ours to replace; saved as {fallback.name}",
+              file=sys.stderr)
+        dest = fallback
     for age in range(keep, keep + PRUNE_REACH):
-        (dest_dir / name(today - timedelta(days=age))).unlink(missing_ok=True)
+        old = dest_dir / name(today - timedelta(days=age))
+        try:
+            old.unlink(missing_ok=True)
+        except PermissionError:
+            print(f"can't prune {old} (made by another program); left it",
+                  file=sys.stderr)
     return dest
 
 

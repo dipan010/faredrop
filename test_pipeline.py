@@ -602,14 +602,49 @@ def main():
         from datetime import date
         for i in range(5):
             out = backup.backup(src, bdir, keep=3, today=date(2026, 1, 1 + i))
-        snap = db.connect(str(out))
+        # Read with plain sqlite3: db.connect would switch it back to WAL.
+        import sqlite3
+        snap = sqlite3.connect(str(out))
+        check(f"a snapshot is one self-contained file "
+              f"({snap.execute('PRAGMA journal_mode').fetchone()[0]})",
+              snap.execute("PRAGMA journal_mode").fetchone()[0] == "delete")
         check("snapshot carries rows still in the WAL",
               snap.execute("SELECT count(*) FROM raw_response").fetchone()[0] == 1)
+        snap.close()
         check("old snapshots pruned to keep", len(backup.snapshots(bdir)) == 3)
         check("pruned by date, so no folder listing is needed",
               [p.name for p in backup.snapshots(bdir)]
               == [f"faredrop-2026-01-0{i}.db" for i in (3, 4, 5)])
-        check("no temp file left behind", not list(bdir.glob("*.tmp")))
+        check("no temp file or SQLite side file left behind",
+              sorted(p.name for p in bdir.iterdir())
+              == [f"faredrop-2026-01-0{i}.db" for i in (3, 4, 5)])
+
+        # macOS refusing to let this program replace or delete a file another
+        # program made in iCloud Drive, simulated.
+        real_replace, real_unlink = backup.os.replace, Path.unlink
+
+        def refuse_existing(a, b):
+            if Path(b).exists():
+                raise PermissionError(1, "Operation not permitted")
+            return real_replace(a, b)
+
+        def refuse_unlink(self, missing_ok=False):
+            # Only snapshots someone else made; the job's own temp and side
+            # files are its to delete.
+            if self.name.startswith("faredrop-") and self.exists():
+                raise PermissionError(1, "Operation not permitted")
+            return real_unlink(self, missing_ok=missing_ok)
+        backup.os.replace, Path.unlink = refuse_existing, refuse_unlink
+        try:
+            again = backup.backup(src, bdir, keep=3, today=date(2026, 1, 5))
+            later = backup.backup(src, bdir, keep=3, today=date(2026, 1, 9))
+        finally:
+            backup.os.replace, Path.unlink = real_replace, real_unlink
+        check("a snapshot it may not replace is kept under a fallback name",
+              again.name.startswith("faredrop-2026-01-05-") and again.exists())
+        check("one it may not prune is left, and the backup still succeeds",
+              later.name == "faredrop-2026-01-09.db"
+              and (bdir / "faredrop-2026-01-05.db").exists())
 
         print("\nmissed-day alarm")
         from datetime import date as _date
