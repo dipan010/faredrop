@@ -245,11 +245,10 @@ real deals show how often the two sources disagree.
 
 ### When a day is missed
 
-`health.py` runs last in every daily run and compares what reached the
-database with the calendar. If today's collection stored nothing, or there
-are days with no collection between the last one and today (the laptop was
-off, the token expired), it posts a macOS notification and, once SMTP is set,
-an email. A gap is reported once, on the first run after it. Nothing can
+`health.py` runs last in every run and checks each finished UTC day of the
+last week: how many of the active route-months were collected that day. A
+day with nothing, or under 90%, gets a macOS notification and an email, once.
+Today isn't judged, because a later slot may still complete it. Nothing can
 alarm on a day when nothing runs at all; launchd's run on wake is what
 catches it.
 
@@ -258,7 +257,18 @@ launchd runs the job on wake, whereas cron drops it. A dropped day is history
 that can't be recovered. That catch-up run starts the moment the Mac wakes, usually before
 Wi-Fi is back, so `daily.sh` first waits up to 5 minutes for the API host to
 answer. Nothing runs while the Mac is asleep, and launchd doesn't catch up
-after a shutdown; `health.py` reports either gap on the next run.
+after a shutdown.
+
+So the job runs four times a day (07:15, 13:15, 19:15, 23:15 IST), and
+`collect.py` fetches only the route-months today doesn't have yet: if the
+laptop is awake at any slot, the day gets completed, and a run after a
+complete one costs nothing. A walk that hits three connection failures in a
+row stops and leaves the rest to the next slot, rather than burning through
+every cell on a Mac that woke without network. While a run is going,
+`caffeinate` keeps the Mac from idle-sleeping (a closed lid still sleeps).
+
+`health.py` reports each finished UTC day once: lost if nothing was
+collected, partial if under 90% of route-months were.
 
 The token lives in `~/.faredrop.env` because launchd starts with a near-empty
 environment and won't inherit a shell export. Without it `daily.sh` exits 78

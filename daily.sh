@@ -9,6 +9,16 @@
 set -u
 cd "$(dirname "$0")"
 
+# Hold off idle sleep until this script exits. On 2026-10-02 the Mac dozed
+# repeatedly mid-run and one collection took four hours. Started from in here,
+# not by wrapping the job in the plist: iCloud Drive ties each file to the
+# program that made it, and the job's program must stay daily.sh to keep
+# replacing and pruning its own snapshots. A closed lid still sleeps.
+/usr/bin/caffeinate -i -w $$ &
+
+# Scheduled several times a day (see the plist); collect.py fetches only the
+# route-months today doesn't have yet, so a run after a complete one is cheap.
+
 # launchd starts with a near-empty environment, so a shell export is not
 # inherited. Keep the token in this file (chmod 600) or in ~/.faredrop.env.
 [ -f ~/.faredrop.env ] && source ~/.faredrop.env

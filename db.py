@@ -58,6 +58,14 @@ CREATE INDEX IF NOT EXISTS idx_obs_routemonth
 CREATE INDEX IF NOT EXISTS idx_obs_fetched
     ON fare_observation (fetched_at);
 
+-- Days health.py has already reported, so each gap is announced once.
+CREATE TABLE IF NOT EXISTS alert (
+    day     TEXT NOT NULL,
+    kind    TEXT NOT NULL,
+    sent_at TEXT NOT NULL,
+    PRIMARY KEY (day, kind)
+);
+
 CREATE TABLE IF NOT EXISTS raw_response (
     id          INTEGER PRIMARY KEY,
     endpoint    TEXT NOT NULL,

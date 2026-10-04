@@ -650,28 +650,100 @@ def main():
         from datetime import date as _date
         ch = db.connect(str(Path(tmp) / "health.db"))
         check("never collected is a problem", len(health.check(ch)) == 1)
-        for day in ("2026-03-01", "2026-03-02", "2026-03-06"):
-            db.save_raw(ch, collect.ENDPOINT, {}, 200, f"{day}T01:45:00+00:00",
-                        "{}")
+        for dest in ("DXB", "SIN"):
+            ch.execute("INSERT INTO route (origin,destination) VALUES ('BLR',?)",
+                       (dest,))
+        full = 2 * config.MONTHS_AHEAD
+
+        def day_of(day, cells):
+            for dest, m in cells:
+                db.save_raw(ch, collect.ENDPOINT,
+                            collect._request("BLR", dest, m), 200,
+                            f"{day}T01:45:00+00:00", "{}")
+            ch.commit()
+        every = [(d, f"2026-{m:02d}") for d in ("DXB", "SIN")
+                 for m in range(3, 3 + config.MONTHS_AHEAD)]
+        day_of("2026-03-01", every)
+        day_of("2026-03-02", every[:3])               # partial
+        day_of("2026-03-04", every)                   # 03-03 missing
+        day_of("2026-03-05", every[:1])               # today, under way
+        found = health.check(ch, today=_date(2026, 3, 5))
+        msgs = [m for _, _, m in found]
+        check(f"a missing day is reported as lost ({len(found)} found)",
+              any(m.startswith("2026-03-03: nothing collected") for m in msgs))
+        check("a partial day is reported with its coverage",
+              f"2026-03-02: only 3/{full} route-months collected" in msgs)
+        check("complete days and today are not judged",
+              len(found) == 2)
+        health.mark(ch, found)
+        check("and each is reported once, not at every catch-up slot",
+              health.check(ch, today=_date(2026, 3, 5)) == [])
         db.save_raw(ch, "/v1/city-directions", {}, 200,
-                    "2026-03-04T01:45:00+00:00", "{}")
+                    "2026-03-06T01:45:00+00:00", "{}")
         ch.commit()
-        check("a normal day is healthy",
-              health.check(ch, today=_date(2026, 3, 2)) == [])
-        check("a day with nothing collected is flagged",
-              any("no collection today" in p
-                  for p in health.check(ch, today=_date(2026, 3, 3))))
-        gap = health.check(ch, today=_date(2026, 3, 6))
-        check(f"a gap is reported with its span ({gap})",
-              gap == ["missed 3 day(s): 2026-03-03 to 2026-03-05 "
-                      "-- that history is gone"])
         check("other endpoints don't count as collecting",
-              "2026-03-04" not in health.collected_days(ch))
-        db.save_raw(ch, collect.ENDPOINT, {}, 200,
-                    "2026-03-07T01:45:00+00:00", "{}")
+              "2026-03-06" not in health.collected_days(ch))
+        ch.execute("UPDATE route SET active=0 WHERE destination='SIN'")
         ch.commit()
-        check("and it is reported once: the next day is clean",
-              health.check(ch, today=_date(2026, 3, 7)) == [])
+        check("a dropped route doesn't count against a day",
+              health.check(ch, today=_date(2026, 3, 6))
+              and all("2026-03-05" in m for _, _, m in
+                      health.check(ch, today=_date(2026, 3, 6))))
+
+        print("\ncatch-up runs")
+        cu = db.connect(str(Path(tmp) / "catchup.db"))
+        cu.execute("INSERT INTO route (origin,destination) VALUES ('BLR','DXB')")
+        cu.commit()
+        today = datetime.now(timezone.utc).date().isoformat()
+        month = collect.months_ahead(1)[0]
+        # As api.get stores it: currency added, token stripped.
+        db.save_raw(cu, collect.ENDPOINT,
+                    {**collect._request("BLR", "DXB", month), "currency": "inr"},
+                    200, f"{today}T01:50:00+00:00", "{}")
+        db.save_raw(cu, collect.ENDPOINT, collect._request("BLR", "DXB", month),
+                    200, "2000-01-01T01:50:00+00:00", "{}")
+        cu.commit()
+        check("a cell answered today counts as done; one from another day doesn't",
+              collect.done_today(cu) == {("BLR", "DXB", month)}
+              and collect.done_today(cu, "2000-01-02") == set())
+        rerun = collect.run(cu, dry_run=True, pause=0)
+        check(f"a repeat run skips what today already has "
+              f"({rerun['cells_done_already']} skipped)",
+              rerun["cells_done_already"] == 1
+              and rerun["cells_planned"] == config.MONTHS_AHEAD - 1)
+        check("--refetch fetches it anyway",
+              collect.run(cu, dry_run=True, pause=0,
+                          refetch=True)["cells_planned"] == config.MONTHS_AHEAD)
+
+        import urllib.error
+        real_get, tries = collect.api.get, []
+
+        def no_dns(*a, **k):
+            tries.append(1)
+            try:
+                raise urllib.error.URLError("nodename nor servname provided")
+            except urllib.error.URLError as e:
+                raise collect.api.ApiError("failed after 3 tries") from e
+
+        def bad_json(*a, **k):
+            tries.append(1)
+            try:
+                raise ValueError("not json")
+            except ValueError as e:
+                raise collect.api.ApiError("returned non-JSON") from e
+        try:
+            collect.api.get = no_dns
+            off = collect.run(cu, pause=0, refetch=True)
+            n_off, tries[:] = len(tries), []
+            collect.api.get = bad_json
+            api_err = collect.run(cu, pause=0, refetch=True)
+        finally:
+            collect.api.get = real_get
+        check(f"no network: the walk stops after {collect.OFFLINE_AFTER} "
+              f"failures, not all {config.MONTHS_AHEAD}",
+              n_off == collect.OFFLINE_AFTER and "stopped" in off)
+        check("an API error is not mistaken for being offline",
+              len(tries) == config.MONTHS_AHEAD and "stopped" not in api_err)
 
         print("\nguards")
         check("empty route list exits with instructions",

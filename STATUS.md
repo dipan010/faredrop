@@ -22,6 +22,9 @@ Last reviewed: 2026-10-02
 - [x] `python3 test_pipeline.py` green, on both Homebrew 3.13 and launchd's `/usr/bin/python3` 3.9.
 - [x] Install and load the launchd job.
 - [x] A run launchd started on its own: 2026-10-02 01:51Z (07:21 IST), 138/138 cells, 56 new fares, health clean.
+- [x] Catch-up slots (2026-10-04): 4 runs a day, each fetching only what today is missing; stops after 3 consecutive connection failures; `caffeinate` during runs; health reports each finished day once, with coverage.
+- **2026-10-03 was lost.** The Mac woke without network at 07:21 IST, the run failed every cell, then hung suspended and blocked the Oct 4 morning run. Oct 4 was completed by hand (138/138). So the clean week restarts: the exit is met if Oct 4–10 are all complete (check on Oct 11).
+- [ ] Optional but the real fix for a sleeping laptop: `sudo pmset repeat wakeorpoweron MTWRFSS 07:16:00` (user's call; needs the admin password). Not set as of 2026-10-04.
 - **Exit:** collector running daily with a log entry every day for a week.
 
 ### Phase 2 — Let it accumulate, then calibrate

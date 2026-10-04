@@ -14,16 +14,21 @@
   <key>WorkingDirectory</key>
   <string>/Users/dipanghosh/Projects/ideas/faredrop</string>
 
-  <!-- 07:15 local. Any fixed hour works; what matters is that it is daily.
-       StartCalendarInterval is why this is launchd and not cron: if the
-       laptop was asleep at 07:15, launchd runs the job on wake instead of
-       skipping the day. cron would simply drop it, and a dropped day is
-       history that cannot be recovered. -->
+  <!-- 07:15 local, then catch-up slots. If the laptop is asleep at a slot,
+       launchd runs it on wake instead of skipping it (cron would drop it,
+       and a dropped day is history that cannot be recovered). The later
+       slots exist because a sleeping laptop can miss the whole morning, or
+       wake without network: collect.py fetches only what today is still
+       missing, so after a complete run they cost nothing.
+       All slots fall inside one UTC day (05:30 to 05:29 IST next day), which
+       is the day the collector counts in. -->
   <key>StartCalendarInterval</key>
-  <dict>
-    <key>Hour</key><integer>7</integer>
-    <key>Minute</key><integer>15</integer>
-  </dict>
+  <array>
+    <dict><key>Hour</key><integer>7</integer><key>Minute</key><integer>15</integer></dict>
+    <dict><key>Hour</key><integer>13</integer><key>Minute</key><integer>15</integer></dict>
+    <dict><key>Hour</key><integer>19</integer><key>Minute</key><integer>15</integer></dict>
+    <dict><key>Hour</key><integer>23</integer><key>Minute</key><integer>15</integer></dict>
+  </array>
 
   <!-- No run at load: loading the job shouldn't fire a collection. -->
   <key>RunAtLoad</key>

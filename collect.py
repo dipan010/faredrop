@@ -25,6 +25,7 @@ import argparse
 import json
 import sys
 import time
+import urllib.error
 from datetime import date, datetime, timezone
 
 import api
@@ -147,6 +148,49 @@ def _insert(conn, rows):
     return conn.total_changes - before
 
 
+def _request(origin, destination, month):
+    """The params for one cell. done_today() matches against these, so the
+    two can't drift apart."""
+    return {"origin": origin, "destination": destination,
+            "depart_date": month}
+
+
+def done_today(conn, day=None):
+    """Cells already fetched successfully on this UTC day.
+
+    Read from raw_response, which holds exactly the calls that got an answer.
+    This is what makes a run safe to repeat: a catch-up run after the laptop
+    slept through the morning fetches only what is still missing, and a day
+    that already completed costs nothing.
+    """
+    day = day or datetime.now(timezone.utc).date().isoformat()
+    done = set()
+    for r in conn.execute(
+            "SELECT params FROM raw_response WHERE endpoint = ?"
+            " AND status = 200 AND substr(fetched_at, 1, 10) = ?",
+            (ENDPOINT, day)):
+        try:
+            p = json.loads(r["params"])
+            done.add((p["origin"], p["destination"], p["depart_date"]))
+        except (ValueError, KeyError, TypeError):
+            continue
+    return done
+
+
+# Consecutive connection failures (DNS, refused, timeout -- not API errors)
+# after which the walk stops. On 2026-10-03 a run on a half-awake Mac with no
+# network spent minutes failing all 138 cells, then hung suspended and
+# blocked the next morning's run. Stopping early leaves the cells to the
+# next scheduled slot instead.
+OFFLINE_AFTER = 3
+
+
+def _offline(exc):
+    cause = exc.__cause__ or exc
+    return (isinstance(cause, (urllib.error.URLError, OSError))
+            and not isinstance(cause, urllib.error.HTTPError))
+
+
 def active_routes(conn):
     return conn.execute(
         "SELECT origin, destination FROM route WHERE active=1"
@@ -154,12 +198,15 @@ def active_routes(conn):
     ).fetchall()
 
 
-def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None):
+def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None,
+        refetch=False):
     """Walk `plan`, a list of (origin, destination, month).
 
     The plan is passed in rather than built here so scheduling stays a
     separate decision -- see schedule.py. The walk itself is unchanged:
-    per-cell commits, raw before parse, one bad cell never ends the run.
+    per-cell commits, raw before parse, one bad cell never ends the run --
+    only a run of connection failures, which means the network is gone.
+    Cells already fetched today are skipped unless `refetch`.
     """
     routes = active_routes(conn)
     if not routes:
@@ -174,11 +221,17 @@ def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None):
         plan = [(r["origin"], r["destination"], month)
                 for r in routes
                 for month in months_ahead(config.MONTHS_AHEAD)]
+    skipped = 0
+    if not refetch:
+        done = done_today(conn)
+        kept = [c for c in plan if c not in done]
+        skipped, plan = len(plan) - len(kept), kept
     if limit:
         plan = plan[:limit]
 
-    stats = {"cells_planned": len(plan), "cells_fetched": 0,
-             "observations_new": 0, "failures": 0}
+    stats = {"cells_planned": len(plan), "cells_done_already": skipped,
+             "cells_fetched": 0, "observations_new": 0, "failures": 0}
+    offline = 0
 
     for origin, destination, month in plan:
         if dry_run:
@@ -186,11 +239,7 @@ def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None):
             continue
         try:
             payload, fetched_at = api.get(
-                ENDPOINT,
-                {"origin": origin, "destination": destination,
-                 "depart_date": month},
-                conn=conn,
-            )
+                ENDPOINT, _request(origin, destination, month), conn=conn)
             # The raw body is now in the transaction. Commit it before the
             # parser gets a chance to throw.
             conn.commit()
@@ -199,6 +248,7 @@ def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None):
             new = _insert(conn, rows)
             conn.commit()
 
+            offline = 0
             stats["cells_fetched"] += 1
             stats["observations_new"] += new
             print(f"  {origin}->{destination} {month}  "
@@ -207,6 +257,10 @@ def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None):
             conn.commit()                   # keep whatever raw we did get
             stats["failures"] += 1
             print(f"  {origin}->{destination} {month}  FAILED  {exc}")
+            offline = offline + 1 if _offline(exc) else 0
+            if offline >= OFFLINE_AFTER:
+                stats["stopped"] = "offline; the rest is left for the next run"
+                break
         time.sleep(pause)
 
     return stats
@@ -283,6 +337,8 @@ if __name__ == "__main__":
                     help="inspect the newest stored raw payload and exit")
     ap.add_argument("--reparse", action="store_true",
                     help="re-run the parser over stored raw payloads and exit")
+    ap.add_argument("--refetch", action="store_true",
+                    help="fetch cells even if already collected today")
     ap.add_argument("--scheduled", action="store_true",
                     help="spend a fixed daily budget where it counts"
                          " (see schedule.py) instead of walking every cell")
@@ -313,5 +369,5 @@ if __name__ == "__main__":
               + "\n")
 
     for k, v in run(conn, limit=args.limit, dry_run=args.dry_run,
-                    plan=todays_plan).items():
+                    plan=todays_plan, refetch=args.refetch).items():
         print(f"  {k:24} {v}")
