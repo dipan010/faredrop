@@ -47,7 +47,9 @@ Last reviewed: 2026-10-02
 - **Exit:** losing the laptop doesn't lose the history.
 
 ### Phase 4 (optional) — Host and publish
-- [ ] **Collector on GitHub Actions** (built 2026-10-04, pushed, not yet live). `collect.yml` runs 4×/day; the history lives as AES-encrypted snapshots on the `data` prerelease (`dbstore.py`), with guards against ever uploading an empty or shrunken DB. Skips until the `FAREDROP_DB_KEY` secret is set. To go live: `gh auth login`, add secrets (`FAREDROP_DB_KEY`, `SMTP_*`, `ALERT_TO`), `dbstore.py push --seed`, then set the key secret last. The key must also be saved in a password manager. Keep the laptop collecting until 2026-10-10, then reduce it to `watchdog.py`.
+- [x] **Collector on GitHub Actions**, live 2026-10-04: secrets set, history seeded, first manual run green (restored 439 responses, fetched 0 since the day was complete, stored 439, no secrets in the public log). `collect.yml` runs at 07:17/13:17/19:17/23:17 IST; history is AES-encrypted snapshots on the `data` prerelease (`dbstore.py`). The key is in `~/.faredrop.env` and the `FAREDROP_DB_KEY` secret, and should be in the user's password manager.
+- [ ] Confirm the scheduled runs actually fire, and how late. The 23:17 slot on 2026-10-04 didn't run; the workflow had been pushed only ~30 min earlier.
+- [ ] After 2026-10-10 (clean week on the laptop), stop laptop collection and keep only `watchdog.py` (wired into `daily.sh`; alerts if the newest snapshot is >30h old).
 - [ ] Move the collector to an always-on host (small VM / Raspberry Pi) if the laptop sleeps through runs.
 - [ ] Optional read-only digest page (static, regenerated daily).
 - [ ] Write-up comparing it with the Zomunk model it reproduces; link here.

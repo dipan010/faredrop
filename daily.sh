@@ -71,3 +71,7 @@ fi
 
 # Last, so it judges what actually reached the database today.
 "$PY" health.py
+
+# The GitHub Actions collector can stop without telling anyone (GitHub
+# disables idle schedules silently); this notices from outside it.
+"$PY" watchdog.py || echo "watchdog failed (rc=$?)" >&2

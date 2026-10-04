@@ -67,6 +67,8 @@ python3 notify.py                 # email anything you haven't been told about
 | `verify.py` | Re-checks pending deals on Google Flights before they're emailed. Optional. |
 | `notify.py` | Emails deals you haven't been told about. Delivery, once. |
 | `backup.py` | Dated, WAL-safe DB snapshot after each collect, locally and in iCloud Drive. |
+| `dbstore.py` | Encrypted history snapshots on the `data` release, for the Actions collector. |
+| `watchdog.py` | From the laptop: alerts if the Actions collector stops producing snapshots. |
 | `health.py` | Alarm (macOS notification, email if set up) when a day of collection is missed. |
 | `simulate.py` | Synthetic history, for exercising the model with no data. |
 | `test_pipeline.py` | Token-free checks of parse -> baseline -> detect. |
@@ -273,6 +275,27 @@ collected, partial if under 90% of route-months were.
 The token lives in `~/.faredrop.env` because launchd starts with a near-empty
 environment and won't inherit a shell export. Without it `daily.sh` exits 78
 (`EX_CONFIG`) so launchd doesn't thrash-retry.
+
+## Running on GitHub Actions
+
+The collector also runs on GitHub's machines (`.github/workflows/collect.yml`),
+four times a day, so a sleeping laptop can't lose a day. Each run restores
+the history, runs the pipeline, and stores it again:
+
+- **Storage:** dated, AES-256 encrypted snapshots on a `data` prerelease of
+  this repo (`dbstore.py`). Encrypted because the repo is public. The key is
+  `FAREDROP_DB_KEY`: a repository secret, plus `~/.faredrop.env`. Keep a copy
+  in a password manager, since GitHub can't show a secret again.
+- **Never from scratch:** a run that can't restore a snapshot fails before
+  touching anything, and a database smaller than the one restored is never
+  uploaded. Snapshots are added, never overwritten; old ones are pruned to
+  every run of the last two days, then one a day for 14 days.
+- **Secrets:** `TRAVEL_PAYOUTS_API_KEY`, `FAREDROP_DB_KEY`, `SMTP_HOST`,
+  `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_TO`. All are masked in the public logs.
+- **Watchdog:** GitHub disables scheduled workflows in idle public repos
+  without telling anyone, and the workflow can't report its own absence, so
+  the laptop's `daily.sh` runs `watchdog.py`. It alerts when the newest
+  snapshot is more than 30 hours old.
 
 ## Known limits, stated honestly
 
