@@ -6,6 +6,7 @@ Run: python3 test_pipeline.py
 
 import json
 import random
+import sqlite3
 import tempfile
 from pathlib import Path
 
@@ -18,9 +19,11 @@ import collect
 import notify
 import schedule
 import verify
+import watchdog
 import config
 import db
 import detect
+import dbstore
 import digest
 import health
 
@@ -744,6 +747,106 @@ def main():
               n_off == collect.OFFLINE_AFTER and "stopped" in off)
         check("an API error is not mistaken for being offline",
               len(tries) == config.MONTHS_AHEAD and "stopped" not in api_err)
+
+        print("\nhistory on GitHub (release simulated in a folder)")
+        import os
+        import shutil
+        rel = Path(tmp) / "release"
+        rel.mkdir()
+
+        def fake_gh(*args, capture=True):
+            if args[:2] == ("release", "view"):
+                return "\n".join(p.name for p in rel.iterdir())
+            if args[:2] == ("release", "download"):
+                name, dest = args[args.index("-p") + 1], args[args.index("-D") + 1]
+                shutil.copy(rel / name, Path(dest) / name)
+            elif args[:2] == ("release", "upload"):
+                shutil.copy(args[3], rel / Path(args[3]).name)
+            elif args[:2] == ("release", "delete-asset"):
+                (rel / args[3]).unlink()
+            return ""
+        real = (dbstore.gh, dbstore.config.DB_PATH, dbstore.PULLED,
+                os.environ.get(dbstore.KEY_ENV))
+        live_db = Path(tmp) / "store" / "faredrop.db"
+        live_db.parent.mkdir()
+        dbstore.gh, dbstore.config.DB_PATH = fake_gh, str(live_db)
+        dbstore.PULLED = live_db.parent / ".pulled"
+        os.environ[dbstore.KEY_ENV] = "test-key-not-a-secret"
+        stamp = iter(f"2026-03-0{i}T0147Z" for i in range(1, 10))
+        real_name = dbstore.snapshot_name
+        dbstore.snapshot_name = lambda: f"faredrop-{next(stamp)}-1.db.enc"
+        try:
+            def exits(f, *a):
+                try:
+                    f(*a)
+                except SystemExit as e:
+                    return str(e)
+                return ""
+            check("an empty release is refused, never started from scratch",
+                  "refusing to start from an empty database" in exits(dbstore.pull))
+            sd = db.connect(str(live_db))
+            db.save_raw(sd, "e", {}, 200, "2026-03-01T01:00:00Z", "{}")
+            sd.commit()
+            sd.close()
+            dbstore.push(seed=True)
+            stored = sorted(p.name for p in rel.iterdir())
+            check(f"a seed upload stores one encrypted snapshot ({stored[0]})",
+                  len(stored) == 1
+                  and b"SQLite format" not in (rel / stored[0]).read_bytes())
+            live_db.unlink()
+            dbstore.pull()
+            check("pull restores it, decrypted and intact",
+                  dbstore.responses(live_db) == 1)
+            sd = sqlite3.connect(str(live_db))
+            sd.execute("DELETE FROM raw_response")
+            sd.commit()
+            sd.close()
+            check("a database that shrank is never uploaded",
+                  "shrank" in exits(dbstore.push)
+                  and len(list(rel.iterdir())) == 1)
+            dbstore.pull()
+            dbstore.push()
+            newest = dbstore.newest_first(p.name for p in rel.iterdir())[0]
+            (rel / newest).write_bytes(b"corrupt")
+            live_db.unlink()
+            check("a corrupt newest snapshot falls back to the one before",
+                  dbstore.pull() != newest and dbstore.responses(live_db) == 1)
+            os.environ[dbstore.KEY_ENV] = "the-wrong-key"
+            check("with the wrong key, nothing is restored",
+                  "FATAL" in exits(dbstore.pull))
+        finally:
+            dbstore.gh, dbstore.config.DB_PATH, dbstore.PULLED = real[:3]
+            dbstore.snapshot_name = real_name
+            if real[3] is None:
+                os.environ.pop(dbstore.KEY_ENV, None)
+            else:
+                os.environ[dbstore.KEY_ENV] = real[3]
+
+        from datetime import date as _d
+        snaps = [f"faredrop-2026-03-{d:02d}T{t}Z-9.db.enc"
+                 for d in range(1, 21) for t in ("0147", "1747")]
+        gone = dbstore.to_prune(snaps + ["notes.txt"], _d(2026, 3, 20))
+        kept = sorted(set(snaps) - set(gone))
+        check(f"pruning keeps every run of the last two days, then one a day "
+              f"for {dbstore.KEEP_DAYS} days ({len(kept)} kept)",
+              all(n in kept for n in snaps if n[15:17] in ("19", "20"))
+              and "faredrop-2026-03-10T1747Z-9.db.enc" in kept
+              and "faredrop-2026-03-10T0147Z-9.db.enc" not in kept
+              and "faredrop-2026-03-05T1747Z-9.db.enc" not in kept)
+        check("and never touches anything that isn't a snapshot",
+              "notes.txt" not in gone)
+        check("it never prunes below the fallbacks, however old",
+              dbstore.to_prune(snaps[:2], _d(2027, 1, 1)) == [])
+
+        print("\nwatchdog")
+        at_ = datetime(2026, 3, 20, 12, 0, tzinfo=timezone.utc)
+        check("a snapshot from this morning means the collector is alive",
+              watchdog.problem(["faredrop-2026-03-20T0147Z-9.db.enc"], at_) is None)
+        check("one 34h old means it has stopped",
+              "34h old" in (watchdog.problem(
+                  ["faredrop-2026-03-19T0147Z-9.db.enc"], at_) or ""))
+        check("no snapshots at all is reported too",
+              "no snapshots" in (watchdog.problem([], at_) or ""))
 
         print("\nguards")
         check("empty route list exits with instructions",

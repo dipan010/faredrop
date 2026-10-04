@@ -10,6 +10,7 @@ data/*.json
 data/*.db
 data/*.db-wal
 data/*.db-shm
+data/.pulled_responses
 backups/
 
 # Verbatim API payloads. Large, and reproducible from the DB.

@@ -47,6 +47,7 @@ Last reviewed: 2026-10-02
 - **Exit:** losing the laptop doesn't lose the history.
 
 ### Phase 4 (optional) — Host and publish
+- [ ] **Collector on GitHub Actions** (built 2026-10-04, pushed, not yet live). `collect.yml` runs 4×/day; the history lives as AES-encrypted snapshots on the `data` prerelease (`dbstore.py`), with guards against ever uploading an empty or shrunken DB. Skips until the `FAREDROP_DB_KEY` secret is set. To go live: `gh auth login`, add secrets (`FAREDROP_DB_KEY`, `SMTP_*`, `ALERT_TO`), `dbstore.py push --seed`, then set the key secret last. The key must also be saved in a password manager. Keep the laptop collecting until 2026-10-10, then reduce it to `watchdog.py`.
 - [ ] Move the collector to an always-on host (small VM / Raspberry Pi) if the laptop sleeps through runs.
 - [ ] Optional read-only digest page (static, regenerated daily).
 - [ ] Write-up comparing it with the Zomunk model it reproduces; link here.
