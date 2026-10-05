@@ -279,7 +279,10 @@ environment and won't inherit a shell export. Without it `daily.sh` exits 78
 ## Running on GitHub Actions
 
 The collector also runs on GitHub's machines (`.github/workflows/collect.yml`),
-four times a day, so a sleeping laptop can't lose a day. Each run restores
+every two hours, so a sleeping laptop can't lose a day. That many slots
+because GitHub's schedule is unpunctual: in the first day, runs came 2.5 to
+6 hours late and one never ran. After the day's first complete run, the rest
+take about a minute each and make no API calls. Each run restores
 the history, runs the pipeline, and stores it again:
 
 - **Storage:** dated, AES-256 encrypted snapshots on a `data` prerelease of

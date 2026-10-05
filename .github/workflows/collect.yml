@@ -1,21 +1,23 @@
 # The daily collector, on GitHub's machines instead of a laptop that sleeps.
 #
 # Each run restores the history from encrypted snapshots on the `data`
-# release (dbstore.py), runs the pipeline, and stores a new snapshot. Four
+# release (dbstore.py), runs the pipeline, and stores a new snapshot. Many
 # slots a day: collect.py fetches only what today is still missing, so after
-# a complete run the later slots cost no API calls, and a slot GitHub runs
-# late or skips is covered by the next one.
+# a complete run the later slots cost no API calls.
+#
+# Every two hours, not four times a day: GitHub runs scheduled workflows
+# late and sometimes not at all. In the first day live (2026-10-04/05) runs
+# came 2.5 to 6 hours late and one slot never ran. A run on a day that is
+# already complete takes about a minute, so twelve slots cost little and make
+# it far less likely that a whole UTC day passes with nothing collected.
 name: collect
 
 on:
   schedule:
-    # UTC. :47 rather than :00/:15, which are GitHub's busiest minutes and the
-    # likeliest to be delayed or dropped. All four fall inside one UTC day,
-    # the day the collector counts in. In IST: 07:17, 13:17, 19:17, 23:17.
-    - cron: "47 1 * * *"
-    - cron: "47 7 * * *"
-    - cron: "47 13 * * *"
-    - cron: "47 17 * * *"
+    # UTC, :47 past every even hour (00:47 ... 22:47; in IST, 06:17, 08:17,
+    # ... 04:17). :47 rather than :00/:15, which are GitHub's busiest minutes
+    # and the likeliest to be delayed or dropped.
+    - cron: "47 */2 * * *"
   workflow_dispatch:
 
 permissions:
