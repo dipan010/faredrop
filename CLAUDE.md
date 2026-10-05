@@ -32,4 +32,6 @@ python3 simulate.py             # synthetic history, for exercising the model on
   `data` release; the laptop's launchd job collects in parallel until 2026-10-10.
   Never weaken `dbstore.py`'s guards (no empty restore, no shrinking upload).
 - Writing repository secrets is the user's job (Claude Code's rules block it).
+- Routes for the GitHub collector live in `routes.json` (added by `routes.py`, add-only).
+  Never pull GitHub's DB into `data/faredrop.db`; to inspect it, decrypt into a scratch path.
 - When a phase's exit criteria are met, tick it in `STATUS.md`.

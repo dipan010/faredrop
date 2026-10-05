@@ -1,6 +1,6 @@
 # faredrop — Status
 
-Last reviewed: 2026-10-06
+Last reviewed: 2026-10-06 (night)
 
 | Built | Documented | Hosted | Posted |
 |---|---|---|---|
@@ -15,7 +15,8 @@ Last reviewed: 2026-10-06
   - **GitHub Actions** (`collect.yml`): the official history. Runs every 2 hours (:47 past even UTC hours), restoring from and storing to AES-encrypted snapshots on the `data` prerelease (`dbstore.py`). Collected Oct 5 completely (138/138). Every run has been green, but GitHub's schedule is unpunctual: in the first day, 3 of 5 slots ran, 2.5–6 h late, and one never ran. So the schedule went from 4×/day to every 2 h on 2026-10-06.
   - **Laptop** (launchd, `daily.sh`): 07:15/13:15/19:15/23:15 IST, a safety net until Oct 10. Each run also runs `watchdog.py`, which alerts if GitHub's newest snapshot is >30h old.
 - **Secrets:** repository secrets `TRAVEL_PAYOUTS_API_KEY`, `FAREDROP_DB_KEY`, `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_TO`, plus the same values in `~/.faredrop.env` (chmod 600). `FAREDROP_DB_KEY` is also in the user's password manager (confirmed 2026-10-05). It is the only way to decrypt the history.
-- Routes are international only: 23 from BLR. 17 are seeded from `/v1/city-directions` (Aviasales' user base, so it includes MOW and AER); `config.EXTRA_DESTINATIONS` adds SIN, KUL, LON, PAR, FRA and AMS. The 13 domestic routes are inactive. Europe is thin in this feed. To change routes, edit `EXTRA_DESTINATIONS` and run `refdata.py destinations`; the collector walks the `route` table.
+- **Wider collection (2026-10-06):** GitHub collects 302 routes from 21 Indian origins (`routes.json`; the laptop stays on its 23 BLR routes). Every route gets one `/v1/prices/calendar` call; the original 23 BLR routes also keep the per-month `/cheap` walk. That's ~440 calls and ~10 min per complete day. Survey: Delhi 666 cached fares, Goa 496, Mumbai 305, BLR 112. Calendar cells are expected from `CALENDAR_SINCE` = 2026-10-06.
+- Routes (laptop) are international only: 23 from BLR. 17 are seeded from `/v1/city-directions` (Aviasales' user base, so it includes MOW and AER); `config.EXTRA_DESTINATIONS` adds SIN, KUL, LON, PAR, FRA and AMS. The 13 domestic routes are inactive. Europe is thin in this feed. To change routes, edit `EXTRA_DESTINATIONS` and run `refdata.py destinations`; the collector walks the `route` table.
 - Parser verified against live payloads: stops come from the offer's key, and the request doesn't pin the return month.
 - **Never upload the laptop's DB to the `data` release again.** It would become the newest snapshot and drop whatever GitHub collected that the laptop didn't.
 
@@ -33,6 +34,10 @@ Last reviewed: 2026-10-06
 - **Exit:** a complete day (≥90% of route-months) every day for a week, on the GitHub collector, with the laptop as backup. Clean week counted from Oct 4; check on Oct 11.
 
 ### Phase 2 — Let it accumulate, then calibrate
+- [x] Data volume (2026-10-06): measured yield was 0.18 new fares per call against a 0.5 placeholder, which put first baselines about 2 months out. An endpoint survey found `/v1/prices/calendar` (all cached round-trips per route in one call), and an origin survey found ~20× more data across Indian cities. Both are now collected.
+- [ ] Phase 2 modelling: calendar fares are per-day minima and `/cheap` fares per-month minima. Check whether pooling them skews the baseline; split by `fare_observation.source` if it does.
+- [ ] Google Flights as a second source: `gf-probe` workflow (manual) tests whether GitHub's network can reach it. Scaling it to a collector is the user's call (it's scraping, against Google's terms).
+- [ ] Snapshots grow with every run (~440 calls/day of raw payloads). Consider skipping the upload when a run changed nothing.
 - [ ] After about 4 days, compare `schedule.measured_yield()` with the `QUOTES_PER_CALL = 0.5` placeholder. The endpoint returns at most one cheapest fare per stop count per call, so if yield is far lower, reaching 12 distinct fares per route-month could take months.
 - [ ] After ~4–6 weeks, check `digest.py` data-readiness per route. Note that each route-month mixes stay lengths (1–38 days seen on day one).
 - [ ] Tune thresholds in `config.py` against real distributions, not `simulate.py` output.

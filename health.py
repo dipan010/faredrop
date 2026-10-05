@@ -43,9 +43,21 @@ def collected_days(conn):
         " WHERE endpoint = ?", (collect.ENDPOINT,))}
 
 
-def expected_cells(conn):
-    n = conn.execute("SELECT count(*) FROM route WHERE active=1").fetchone()[0]
-    return n * config.MONTHS_AHEAD
+def expected_for(conn, day):
+    """-> (routes, expected cell count) for one UTC day, as things stood then.
+
+    Judged by what existed that day, not today: a route counts from the day
+    it was added (route.added_at), and calendar cells only from
+    collect.CALENDAR_SINCE. Otherwise widening the route list would
+    retroactively turn every complete past day into a "partial" one.
+    """
+    rows = conn.execute(
+        "SELECT origin, destination, added_at FROM route"
+        " WHERE active = 1 AND substr(added_at, 1, 10) <= ?", (day,)).fetchall()
+    routes = {(r[0], r[1]) for r in rows}
+    cheap = sum(1 for r in rows if collect.has_cheap(r[0], r[2]))
+    calendar = len(routes) if day >= collect.CALENDAR_SINCE else 0
+    return routes, cheap * config.MONTHS_AHEAD + calendar
 
 
 def check(conn, today=None):
@@ -57,21 +69,19 @@ def check(conn, today=None):
                   "collection has never succeeded -- no history is being kept")]
     else:
         found = []
-        expected = expected_cells(conn)
-        # Only routes still watched count; a dropped route's old cells would
-        # pad a short day.
-        active = {(r[0], r[1]) for r in conn.execute(
-            "SELECT origin, destination FROM route WHERE active=1")}
         start = max(date.fromisoformat(min(days)),
                     today - timedelta(days=LOOKBACK_DAYS))
         day = start
         while day < today:
+            routes, expected = expected_for(conn, day.isoformat())
+            # Only routes watched that day count; a dropped route's old cells
+            # would pad a short day.
             got = sum(1 for o, d, _ in collect.done_today(conn, day.isoformat())
-                      if (o, d) in active)
+                      if (o, d) in routes)
             if got < PARTIAL_BELOW * expected:
                 what = ("nothing collected -- that day's history is gone"
                         if got == 0 else
-                        f"only {got}/{expected} route-months collected")
+                        f"only {got}/{expected} cells collected")
                 found.append((day.isoformat(), "coverage", f"{day}: {what}"))
             day += timedelta(days=1)
     reported = {(r[0], r[1]) for r in

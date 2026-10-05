@@ -33,7 +33,9 @@ concurrency:
 jobs:
   collect:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # ~300 calls at ~1.3 s each is about 7 minutes; the collect step has its
+    # own, shorter limit so "Store the history" always gets to run.
+    timeout-minutes: 50
     env:
       GH_TOKEN: ${{ github.token }}
       FAREDROP_DB_KEY: ${{ secrets.FAREDROP_DB_KEY }}
@@ -79,10 +81,21 @@ jobs:
         if: steps.ready.outputs.ok == 'true'
         run: python3 dbstore.py pull
 
+      # Routes live in routes.json in the repo, not only in the database, so
+      # adding a route never means editing the encrypted history by hand.
+      # Add-only: a route switched off stays off. Never blocks collection: a
+      # broken routes.json must not cost the existing routes their day.
+      - name: Sync the route list
+        if: steps.ready.outputs.ok == 'true'
+        continue-on-error: true
+        run: python3 routes.py
+
       # Same order and the same "a failing step never stops the next" rule as
       # daily.sh. Collection first: it is the only step that can't be redone.
       - name: Collect, model, detect, alert
         if: steps.ready.outputs.ok == 'true'
+        timeout-minutes: 35
+        continue-on-error: true
         run: |
           python3 collect.py || echo "::warning::collect failed (rc=$?) -- history may have a gap"
           python3 baseline.py || echo "::warning::baseline failed"

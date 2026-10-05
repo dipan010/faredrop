@@ -40,6 +40,39 @@ import db
 # back within that month, which on 2026-10-01 emptied BLR->DXB/SIN/DPS for
 # November while the same calls without it each returned a round-trip.
 ENDPOINT = "/v1/prices/cheap"
+
+# The second question, and the main one from 2026-10-06. /v1/prices/calendar
+# ignores any month it is given and answers with every cached round-trip for
+# the route, the cheapest per departure day, across all months. One call per
+# route; measured on 2026-10-06 it returned about twice the fares /cheap did
+# from a sixth of the calls. A calendar cell is (origin, destination, CALENDAR)
+# in a plan, so plans stay 3-tuples. Note that these are per-day minima, where
+# /cheap's are per-month minima; `source` records which, so Phase 2 can model
+# them apart if pooling skews the baseline.
+CALENDAR_ENDPOINT = "/v1/prices/calendar"
+CALENDAR = "calendar"
+# The first UTC day the collector walked calendar cells. health.py expects
+# them only from here: inferring it from the data would pick up probe.py's
+# one-off calendar call on 2026-10-01 and fail every day since.
+CALENDAR_SINCE = "2026-10-06"
+
+# /cheap's six-calls-per-route walk is kept only for the routes it was
+# already collecting -- these origins, added before the calendar started --
+# so the history begun with it continues unchanged. Every other route is
+# collected through the calendar alone.
+CHEAP_ORIGINS = {"BLR"}
+
+
+# Its own date, not CALENDAR_SINCE: the wider route list went in on
+# 2026-10-05 (UTC), a day before the calendar walk counts. Every route it
+# added is calendar-only; the 23 BLR routes from before it keep /cheap.
+CHEAP_ROUTES_ADDED_BEFORE = "2026-10-05"
+
+
+def has_cheap(origin, added_at):
+    """Does this route still get the per-month /cheap walk?"""
+    return (origin in CHEAP_ORIGINS
+            and (added_at or "")[:10] < CHEAP_ROUTES_ADDED_BEFORE)
 PAUSE_SEC = 1.0          # api.py retries with backoff; don't make it need to
 
 
@@ -72,8 +105,13 @@ def _day(value):
 # non-stop, "1" one stop). Deliberately the ONLY place in the collector that
 # names an API field.
 
-def _parse(payload, origin, destination, fetched_at):
-    """Payload -> rows ready for fare_observation. Never raises on shape."""
+def _parse(payload, origin, destination, fetched_at, source=ENDPOINT):
+    """Payload -> rows ready for fare_observation. Never raises on shape.
+
+    Both endpoints share the offer shape. /cheap files offers by stop count
+    ({DEST: {"0": {...}, "1": {...}}}); the calendar files them by departure
+    day ({"2026-11-20": {...}}) and carries the stop count as `transfers`.
+    """
     data = (payload or {}).get("data")
     if not isinstance(data, dict):
         return []
@@ -121,7 +159,7 @@ def _parse(payload, origin, destination, fetched_at):
             "actual": 1 if offer.get("actual") else 0,
             # OUR clock, not the API's found_at -- see the note in db.py.
             "fetched_at": fetched_at,
-            "source": ENDPOINT,
+            "source": source,
         })
     return rows
 
@@ -149,10 +187,21 @@ def _insert(conn, rows):
 
 
 def _request(origin, destination, month):
-    """The params for one cell. done_today() matches against these, so the
-    two can't drift apart."""
-    return {"origin": origin, "destination": destination,
-            "depart_date": month}
+    """(endpoint, params) for one cell. done_today() keys cells the same way
+    from the stored params, so the two can't drift apart."""
+    if month == CALENDAR:
+        return CALENDAR_ENDPOINT, {"origin": origin,
+                                   "destination": destination,
+                                   "calendar_type": "departure_date"}
+    return ENDPOINT, {"origin": origin, "destination": destination,
+                      "depart_date": month}
+
+
+def _cell(endpoint, params):
+    """The plan cell a stored request answered, or None."""
+    if endpoint == CALENDAR_ENDPOINT:
+        return (params["origin"], params["destination"], CALENDAR)
+    return (params["origin"], params["destination"], params["depart_date"])
 
 
 def done_today(conn, day=None):
@@ -166,12 +215,12 @@ def done_today(conn, day=None):
     day = day or datetime.now(timezone.utc).date().isoformat()
     done = set()
     for r in conn.execute(
-            "SELECT params FROM raw_response WHERE endpoint = ?"
+            "SELECT endpoint, params FROM raw_response"
+            " WHERE endpoint IN (?, ?)"
             " AND status = 200 AND substr(fetched_at, 1, 10) = ?",
-            (ENDPOINT, day)):
+            (ENDPOINT, CALENDAR_ENDPOINT, day)):
         try:
-            p = json.loads(r["params"])
-            done.add((p["origin"], p["destination"], p["depart_date"]))
+            done.add(_cell(r["endpoint"], json.loads(r["params"])))
         except (ValueError, KeyError, TypeError):
             continue
     return done
@@ -191,11 +240,30 @@ def _offline(exc):
             and not isinstance(cause, urllib.error.HTTPError))
 
 
+def _refused(exc):
+    """The API saying no to every call alike: a revoked key or rate limit.
+    Retrying ~300 calls of that would run the job into its time limit."""
+    cause = exc.__cause__ or exc
+    return (isinstance(cause, urllib.error.HTTPError)
+            and cause.code in (401, 403, 429))
+
+
 def active_routes(conn):
     return conn.execute(
-        "SELECT origin, destination FROM route WHERE active=1"
+        "SELECT origin, destination, added_at FROM route WHERE active=1"
         " ORDER BY origin, destination"
     ).fetchall()
+
+
+def default_plan(routes):
+    """Every active route's calendar cell, plus the per-month /cheap cells
+    for routes that have them (has_cheap). Cheap cells first: they are the
+    continuing history."""
+    months = months_ahead(config.MONTHS_AHEAD)
+    cheap = [(r["origin"], r["destination"], m) for r in routes
+             if has_cheap(r["origin"], r["added_at"]) for m in months]
+    cal = [(r["origin"], r["destination"], CALENDAR) for r in routes]
+    return cheap + cal
 
 
 def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None,
@@ -218,9 +286,7 @@ def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None,
         )
 
     if plan is None:
-        plan = [(r["origin"], r["destination"], month)
-                for r in routes
-                for month in months_ahead(config.MONTHS_AHEAD)]
+        plan = default_plan(routes)
     skipped = 0
     if not refetch:
         done = done_today(conn)
@@ -231,24 +297,24 @@ def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None,
 
     stats = {"cells_planned": len(plan), "cells_done_already": skipped,
              "cells_fetched": 0, "observations_new": 0, "failures": 0}
-    offline = 0
+    offline = refused = 0
 
     for origin, destination, month in plan:
         if dry_run:
             print(f"  would fetch {origin}->{destination} {month}")
             continue
         try:
-            payload, fetched_at = api.get(
-                ENDPOINT, _request(origin, destination, month), conn=conn)
+            endpoint, params = _request(origin, destination, month)
+            payload, fetched_at = api.get(endpoint, params, conn=conn)
             # The raw body is now in the transaction. Commit it before the
             # parser gets a chance to throw.
             conn.commit()
 
-            rows = _parse(payload, origin, destination, fetched_at)
+            rows = _parse(payload, origin, destination, fetched_at, endpoint)
             new = _insert(conn, rows)
             conn.commit()
 
-            offline = 0
+            offline = refused = 0
             stats["cells_fetched"] += 1
             stats["observations_new"] += new
             print(f"  {origin}->{destination} {month}  "
@@ -258,8 +324,13 @@ def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None,
             stats["failures"] += 1
             print(f"  {origin}->{destination} {month}  FAILED  {exc}")
             offline = offline + 1 if _offline(exc) else 0
+            refused = refused + 1 if _refused(exc) else 0
             if offline >= OFFLINE_AFTER:
                 stats["stopped"] = "offline; the rest is left for the next run"
+                break
+            if refused >= OFFLINE_AFTER:
+                stats["stopped"] = (f"API refusing calls ({exc}); "
+                                    "the rest is left for the next run")
                 break
         time.sleep(pause)
 
@@ -280,8 +351,8 @@ def reparse(conn):
     refilling it.
     """
     rows = conn.execute(
-        "SELECT params, fetched_at, body FROM raw_response"
-        " WHERE endpoint = ? ORDER BY id", (ENDPOINT,)
+        "SELECT endpoint, params, fetched_at, body FROM raw_response"
+        " WHERE endpoint IN (?, ?) ORDER BY id", (ENDPOINT, CALENDAR_ENDPOINT)
     ).fetchall()
 
     stats = {"payloads": len(rows), "observations_new": 0, "unparseable": 0}
@@ -293,7 +364,8 @@ def reparse(conn):
             stats["unparseable"] += 1
             continue
         parsed = _parse(payload, params.get("origin"),
-                        params.get("destination"), r["fetched_at"])
+                        params.get("destination"), r["fetched_at"],
+                        r["endpoint"])
         stats["observations_new"] += _insert(conn, parsed)
     conn.commit()
     return stats

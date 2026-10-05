@@ -1,0 +1,43 @@
+# Can GitHub's machines reach Google Flights at all? A deliberate, manual,
+# three-lookup test before anyone considers Google Flights as a second data
+# source. It reads nothing private: no secrets, no access to the history,
+# read-only token. Run it from the Actions tab; nothing runs it on a schedule.
+name: gf-probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-verify.txt
+      - name: Three lookups, a pause between each
+        run: |
+          python3 - <<'EOF'
+          import time
+          from datetime import date, timedelta
+          import verify
+          out = date.today() + timedelta(days=45)
+          back = out + timedelta(days=7)
+          ok = 0
+          for origin, dest in [("BLR", "DXB"), ("DEL", "BKK"), ("BOM", "SIN")]:
+              d = {"origin": origin, "destination": dest, "trip_class": 0,
+                   "depart_date": out.isoformat(), "return_date": back.isoformat()}
+              try:
+                  r = verify.google_flights(d)
+                  ok += 1
+                  print(f"OK   {origin}->{dest} {out}: {r}")
+              except Exception as e:
+                  print(f"FAIL {origin}->{dest} {out}: {type(e).__name__}: {str(e)[:200]}")
+              time.sleep(5)
+          print(f"\n{ok}/3 lookups answered from GitHub's network")
+          EOF

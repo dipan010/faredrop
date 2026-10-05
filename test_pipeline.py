@@ -17,6 +17,7 @@ import backup
 import baseline
 import collect
 import notify
+import routes
 import schedule
 import verify
 import watchdog
@@ -54,6 +55,20 @@ LIVE = {"success": True, "currency": "inr", "data": {"DXB": {
     "1": {"airline": "GF", "departure_at": "2026-11-27T05:00:00+05:30",
           "return_at": "2026-12-05T07:45:00+04:00", "price": 29254,
           "flight_number": 283, "duration": 1220}}}}
+
+# /v1/prices/calendar as seen on 2026-10-06: offers filed by departure day,
+# stops as `transfers`, across months whatever month was asked for.
+CALENDAR_LIVE = {"success": True, "currency": "inr", "data": {
+    "2026-10-15": {"origin": "BLR", "destination": "DXB", "airline": "GF",
+                   "departure_at": "2026-10-15T22:20:00+05:30",
+                   "return_at": "2026-10-20T12:55:00+04:00",
+                   "expires_at": "2026-10-05T20:27:32Z", "price": 23196,
+                   "flight_number": 281, "transfers": 1},
+    "2026-11-27": {"origin": "BLR", "destination": "DXB", "airline": "GF",
+                   "departure_at": "2026-11-27T05:00:00+05:30",
+                   "return_at": "2026-12-05T07:45:00+04:00",
+                   "expires_at": "2026-10-05T20:27:32Z", "price": 29244,
+                   "flight_number": 283, "transfers": 0}}}
 
 
 def check(label, cond):
@@ -100,13 +115,21 @@ def main():
     live = {x["airline"]: x for x in collect._parse(LIVE, "BLR", "DXB", at(0))}
     check("live shape: stops come from the offer's key",
           live["EK"]["stops"] == 0 and live["GF"]["stops"] == 1)
+    cal = collect._parse(CALENDAR_LIVE, "BLR", "DXB", at(0),
+                         collect.CALENDAR_ENDPOINT)
+    check("calendar shape: one fare per departure day, across months",
+          sorted(r["depart_month"] for r in cal) == ["2026-10", "2026-11"])
+    check("calendar shape: stops from `transfers`, source recorded",
+          [r["stops"] for r in sorted(cal, key=lambda r: r["depart_date"])]
+          == [1, 0]
+          and all(r["source"] == collect.CALENDAR_ENDPOINT for r in cal))
     check("live shape: a return month later than departure is kept",
           live["GF"]["return_date"] == "2026-12-05"
           and live["GF"]["depart_month"] == "2026-11")
 
     with tempfile.TemporaryDirectory() as tmp:
         conn = db.connect(str(Path(tmp) / "t.db"))
-        conn.execute("INSERT INTO route (origin,destination) VALUES ('BLR','DXB')")
+        conn.execute("INSERT INTO route (origin,destination,added_at) VALUES ('BLR','DXB','2026-01-01 00:00:00')")
 
         print("\ninsert")
         check("rows insert", collect._insert(conn, rows) == 2)
@@ -515,7 +538,7 @@ def main():
         print("\nscheduler")
         c5 = db.connect(str(Path(tmp) / "sched.db"))
         for d in ("DXB", "SIN", "BKK", "LHR"):
-            c5.execute("INSERT INTO route (origin,destination) VALUES ('BLR',?)",
+            c5.execute("INSERT INTO route (origin,destination,added_at) VALUES ('BLR',?,'2026-01-01 00:00:00')",
                        (d,))
         c5.commit()
         # Next month, not this one: a depart_date in the current month is
@@ -549,7 +572,7 @@ def main():
         print("\nscheduler: the reserve keeps it from locking")
         c6 = db.connect(str(Path(tmp) / "lock.db"))
         for d in ("DXB", "SIN", "BKK", "LHR", "CDG", "DOH"):
-            c6.execute("INSERT INTO route (origin,destination) VALUES ('BLR',?)",
+            c6.execute("INSERT INTO route (origin,destination,added_at) VALUES ('BLR',?,'2026-01-01 00:00:00')",
                        (d,))
         c6.commit()
         # Every route mature except one, and a budget only big enough for
@@ -654,14 +677,14 @@ def main():
         ch = db.connect(str(Path(tmp) / "health.db"))
         check("never collected is a problem", len(health.check(ch)) == 1)
         for dest in ("DXB", "SIN"):
-            ch.execute("INSERT INTO route (origin,destination) VALUES ('BLR',?)",
-                       (dest,))
+            ch.execute("INSERT INTO route (origin,destination,added_at)"
+                       " VALUES ('BLR',?,'2026-01-01 00:00:00')", (dest,))
         full = 2 * config.MONTHS_AHEAD
 
         def day_of(day, cells):
             for dest, m in cells:
-                db.save_raw(ch, collect.ENDPOINT,
-                            collect._request("BLR", dest, m), 200,
+                ep, params = collect._request("BLR", dest, m)
+                db.save_raw(ch, ep, params, 200,
                             f"{day}T01:45:00+00:00", "{}")
             ch.commit()
         every = [(d, f"2026-{m:02d}") for d in ("DXB", "SIN")
@@ -675,7 +698,7 @@ def main():
         check(f"a missing day is reported as lost ({len(found)} found)",
               any(m.startswith("2026-03-03: nothing collected") for m in msgs))
         check("a partial day is reported with its coverage",
-              f"2026-03-02: only 3/{full} route-months collected" in msgs)
+              f"2026-03-02: only 3/{full} cells collected" in msgs)
         check("complete days and today are not judged",
               len(found) == 2)
         health.mark(ch, found)
@@ -688,6 +711,23 @@ def main():
               "2026-03-06" not in health.collected_days(ch))
         ch.execute("UPDATE route SET active=0 WHERE destination='SIN'")
         ch.commit()
+        ch.execute("UPDATE route SET active=1 WHERE destination='SIN'")
+        ch.execute("INSERT INTO route (origin,destination,added_at)"
+                   " VALUES ('DEL','DXB','2026-03-04 09:00:00')")
+        ch.commit()
+        check("a route added later doesn't count against earlier days",
+              health.expected_for(ch, "2026-03-01")[1] == full
+              and health.expected_for(ch, "2026-03-04")[1] == full)
+        since, collect.CALENDAR_SINCE = collect.CALENDAR_SINCE, "2026-03-07"
+        try:
+            check("calendar cells are expected only from CALENDAR_SINCE",
+                  health.expected_for(ch, "2026-03-04")[1] == full
+                  and health.expected_for(ch, "2026-03-07")[1] == full + 3)
+        finally:
+            collect.CALENDAR_SINCE = since
+        ch.execute("UPDATE route SET active=0 WHERE destination='SIN'"
+                   " OR origin='DEL'")
+        ch.commit()
         check("a dropped route doesn't count against a day",
               health.check(ch, today=_date(2026, 3, 6))
               and all("2026-03-05" in m for _, _, m in
@@ -695,15 +735,15 @@ def main():
 
         print("\ncatch-up runs")
         cu = db.connect(str(Path(tmp) / "catchup.db"))
-        cu.execute("INSERT INTO route (origin,destination) VALUES ('BLR','DXB')")
+        cu.execute("INSERT INTO route (origin,destination,added_at) VALUES ('BLR','DXB','2026-01-01 00:00:00')")
         cu.commit()
         today = datetime.now(timezone.utc).date().isoformat()
         month = collect.months_ahead(1)[0]
         # As api.get stores it: currency added, token stripped.
         db.save_raw(cu, collect.ENDPOINT,
-                    {**collect._request("BLR", "DXB", month), "currency": "inr"},
+                    {**collect._request("BLR", "DXB", month)[1], "currency": "inr"},
                     200, f"{today}T01:50:00+00:00", "{}")
-        db.save_raw(cu, collect.ENDPOINT, collect._request("BLR", "DXB", month),
+        db.save_raw(cu, collect.ENDPOINT, collect._request("BLR", "DXB", month)[1],
                     200, "2000-01-01T01:50:00+00:00", "{}")
         cu.commit()
         check("a cell answered today counts as done; one from another day doesn't",
@@ -713,10 +753,35 @@ def main():
         check(f"a repeat run skips what today already has "
               f"({rerun['cells_done_already']} skipped)",
               rerun["cells_done_already"] == 1
-              and rerun["cells_planned"] == config.MONTHS_AHEAD - 1)
+              # the five other months, plus the route's calendar cell
+              and rerun["cells_planned"] == config.MONTHS_AHEAD)
         check("--refetch fetches it anyway",
               collect.run(cu, dry_run=True, pause=0,
-                          refetch=True)["cells_planned"] == config.MONTHS_AHEAD)
+                          refetch=True)["cells_planned"] == config.MONTHS_AHEAD + 1)
+
+        db.save_raw(cu, collect.CALENDAR_ENDPOINT,
+                    {**collect._request("BLR", "DXB", collect.CALENDAR)[1],
+                     "currency": "inr"},
+                    200, f"{today}T03:00:00+00:00", json.dumps(CALENDAR_LIVE))
+        cu.commit()
+        check("a calendar call made today counts as its own done cell",
+              ("BLR", "DXB", collect.CALENDAR) in collect.done_today(cu))
+        rp = collect.reparse(cu)
+        check(f"--reparse rebuilds from both endpoints' raw payloads "
+              f"({rp['payloads']} payloads)",
+              rp["payloads"] == 3
+              and cu.execute("SELECT count(*) FROM fare_observation"
+                             " WHERE source = ?",
+                             (collect.CALENDAR_ENDPOINT,)).fetchone()[0] == 2)
+        check("only BLR keeps the per-month walk; other origins get the "
+              "calendar alone",
+              collect.default_plan([{"origin": "DEL", "destination": "DXB",
+                                     "added_at": "2026-01-01 00:00:00"}])
+              == [("DEL", "DXB", collect.CALENDAR)])
+        check("and a BLR route added after the calendar started gets it alone too",
+              collect.default_plan([{"origin": "BLR", "destination": "IST",
+                                     "added_at": "2026-10-06 03:00:00"}])
+              == [("BLR", "IST", collect.CALENDAR)])
 
         import urllib.error
         real_get, tries = collect.api.get, []
@@ -734,19 +799,50 @@ def main():
                 raise ValueError("not json")
             except ValueError as e:
                 raise collect.api.ApiError("returned non-JSON") from e
+        def revoked(*a, **k):
+            tries.append(1)
+            try:
+                raise urllib.error.HTTPError("u", 401, "Unauthorized", {}, None)
+            except urllib.error.HTTPError as e:
+                raise collect.api.ApiError("failed after 3 tries") from e
         try:
             collect.api.get = no_dns
             off = collect.run(cu, pause=0, refetch=True)
             n_off, tries[:] = len(tries), []
+            collect.api.get = revoked
+            ref = collect.run(cu, pause=0, refetch=True)
+            n_ref, tries[:] = len(tries), []
             collect.api.get = bad_json
             api_err = collect.run(cu, pause=0, refetch=True)
         finally:
             collect.api.get = real_get
+        check(f"a revoked key or rate limit stops the walk after "
+              f"{collect.OFFLINE_AFTER} refusals",
+              n_ref == collect.OFFLINE_AFTER and "refusing" in ref.get("stopped", ""))
         check(f"no network: the walk stops after {collect.OFFLINE_AFTER} "
               f"failures, not all {config.MONTHS_AHEAD}",
               n_off == collect.OFFLINE_AFTER and "stopped" in off)
         check("an API error is not mistaken for being offline",
-              len(tries) == config.MONTHS_AHEAD and "stopped" not in api_err)
+              len(tries) == config.MONTHS_AHEAD + 1 and "stopped" not in api_err)
+
+        print("\nroute list from the repo")
+        rf = Path(tmp) / "routes.json"
+        rf.write_text(json.dumps({"routes": {"BLR": ["DXB", "LHR"],
+                                             "DEL": ["MOW", "KTM"]}}))
+        cr = db.connect(str(Path(tmp) / "routes.db"))
+        cr.execute("INSERT INTO route (origin,destination,active)"
+                   " VALUES ('BLR','LHR',0)")
+        cr.commit()
+        added = routes.sync(cr, rf)
+        check(f"missing routes are added ({len(added)})",
+              sorted((o, d) for o, d, _ in added)
+              == [("BLR", "DXB"), ("DEL", "KTM"), ("DEL", "MOW")])
+        check("a route switched off on purpose stays off",
+              cr.execute("SELECT active FROM route WHERE destination='LHR'")
+                .fetchone()[0] == 0)
+        check("running it again changes nothing", routes.sync(cr, rf) == [])
+        check("and the repo's routes.json parses",
+              len(routes.wanted()) > 200)
 
         print("\nhistory on GitHub (release simulated in a folder)")
         import os

@@ -67,6 +67,7 @@ python3 notify.py                 # email anything you haven't been told about
 | `verify.py` | Re-checks pending deals on Google Flights before they're emailed. Optional. |
 | `notify.py` | Emails deals you haven't been told about. Delivery, once. |
 | `backup.py` | Dated, WAL-safe DB snapshot after each collect, locally and in iCloud Drive. |
+| `routes.py` | Adds the routes in `routes.json` to the database; add-only. |
 | `dbstore.py` | Encrypted history snapshots on the `data` release, for the Actions collector. |
 | `watchdog.py` | From the laptop: alerts if the Actions collector stops producing snapshots. |
 | `health.py` | Alarm (macOS notification, email if set up) when a day of collection is missed. |
@@ -275,6 +276,29 @@ collected, partial if under 90% of route-months were.
 The token lives in `~/.faredrop.env` because launchd starts with a near-empty
 environment and won't inherit a shell export. Without it `daily.sh` exits 78
 (`EX_CONFIG`) so launchd doesn't thrash-retry.
+
+## What gets collected, and from where
+
+Two questions go to the Travelpayouts API each day:
+
+- **`/v1/prices/calendar`, one call per route, for every route.** It returns
+  every cached round-trip for the route, the cheapest per departure day,
+  across all months. Measured on 2026-10-06, it returned about twice the
+  fares of the per-month walk from a sixth of the calls.
+- **`/v1/prices/cheap`, one call per route-month,** kept only for the 23 BLR
+  routes collected before 2026-10-05, so their history continues unchanged.
+
+The two record different things: the calendar gives a per-day minimum, /cheap
+a per-month one. `fare_observation.source` says which, so the model can treat
+them apart if pooling them skews it.
+
+**Routes** cover 21 Indian origins (292 international routes) and live in
+`routes.json`. That file was built from a survey of which routes this source
+actually has fares for; the GitHub workflow adds any missing ones each run
+(`routes.py`, add-only). The data is Aviasales' search cache, and its users
+are mostly Russian and CIS. So Delhi, Goa and Mumbai are rich, Moscow and
+Colombo are the deepest destinations, and Europe and North America are thin
+or empty. More destinations don't add data that isn't in the cache.
 
 ## Running on GitHub Actions
 
