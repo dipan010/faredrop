@@ -209,9 +209,12 @@ def _cell_level(adjusted_logs):
 
 # --- writing it down ---------------------------------------------------
 
-def compute(conn, min_observations=None):
-    """Recompute every route-month cell that has enough distinct quotes."""
+def compute(conn, min_observations=None, min_history_days=None):
+    """Recompute every route-month cell with enough distinct quotes, seen
+    over enough different days (config.MIN_HISTORY_DAYS)."""
     min_n = min_observations or config.MIN_OBSERVATIONS
+    min_days = (config.MIN_HISTORY_DAYS if min_history_days is None
+                else min_history_days)
     now = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
     # Every quote counts as history, expired or not. `expires_at` means "this
@@ -245,11 +248,21 @@ def compute(conn, min_observations=None):
     for q in quotes:
         key = (q["origin"], q["destination"], q["depart_month"], q["trip_class"])
         cells.setdefault(key, []).append(q)
+    days = {tuple(r[:4]): r[4] for r in conn.execute(
+        "SELECT origin, destination, depart_month, trip_class,"
+        " count(DISTINCT substr(fetched_at, 1, 10))"
+        " FROM fare_observation GROUP BY 1, 2, 3, 4")}
 
-    written = skipped = 0
+    # A full recompute, so a cell that no longer qualifies loses its
+    # baseline instead of keeping a stale one that detect.py would still use.
+    conn.execute("DELETE FROM baseline")
+    written = skipped = short = 0
     for key, qs in cells.items():
         if len(qs) < min_n:
             skipped += 1
+            continue
+        if days.get(key, 0) < min_days:
+            short += 1
             continue
         route_key = _route_key(qs[0])
 
@@ -291,6 +304,7 @@ def compute(conn, min_observations=None):
             "horizon_offsets": len(offsets),
             "cells_written": written,
             "cells_below_threshold": skipped,
+            "cells_short_history": short,
             "min_observations": min_n}
 
 

@@ -85,6 +85,20 @@ much history exists and collapses the spread estimate -- which is the exact
 number the outlier score divides by. Rows stay verbatim as the audit trail;
 they are collapsed on read, in `baseline.distinct_quotes`.
 
+**A history, not one day's spread.** A route-month needs 12 distinct quotes
+*and* data from at least `MIN_HISTORY_DAYS` (7) different collection days.
+The calendar endpoint returns a whole month of departure dates in one call,
+so one day can already hold 12 quotes. "Normal" built from that is only the
+spread across departure dates, and a "deal" against it only means "the
+cheapest date this month". That is exactly what fired on 2026-10-06, the
+first day of the wider collection. Every recompute starts clean, so a cell
+that stops qualifying loses its baseline.
+
+**The quality bar filters.** A fare with more than `MAX_STOPS` (1) stops is
+never a deal, however cheap; it is not merely flagged. Deals are emailed
+only for departure cities in `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI).
+Every other origin is still collected and still shows in `digest.py`.
+
 **Condition on how far ahead you are booking.** A fare 200 days out and one
 10 days out are different distributions; pooled, the median is a blend and a
 fixed ratio is wrong against both. Four coarse buckets, not a fitted curve --

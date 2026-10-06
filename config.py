@@ -44,7 +44,13 @@ TRIP_CLASSES = {0: "economy", 1: "business", 2: "first"}
 # --- quality bar -------------------------------------------------------
 # The filters that make a deal worth surfacing rather than just cheap.
 
-MAX_STOPS = 1              # Zomunk's bar: non-stop or one-stop only
+MAX_STOPS = 1              # Zomunk's bar: non-stop or one-stop only. Fares
+                           # over it are never deals (detect.py skips them).
+
+# Departure cities whose deals are emailed. Collection covers every origin in
+# routes.json; deals elsewhere are still detected and shown by digest.py, but
+# not sent. BLR plus nearby, chosen 2026-10-06.
+ALERT_ORIGINS = {"BLR", "MAA", "COK", "HYD", "GOI"}
 # Carriers we don't want to be alerted about, by IATA code.
 AIRLINE_BLOCKLIST = set()
 
@@ -110,6 +116,15 @@ DETECT_WINDOW_DAYS = 3
 # rows: the same fare reappears in the feed day after day, and counting the
 # repeats would both overstate readiness and collapse the scale estimate.
 MIN_OBSERVATIONS = 12
+
+# ...and those quotes must come from at least this many different collection
+# days. The calendar endpoint returns a whole month of departure dates in one
+# call, so a single day can already hold 12+ distinct quotes. A "normal"
+# built from one day is the spread across departure dates, and a deal against
+# it only means "the cheapest date this month", not a price that dropped. That
+# is exactly what fired on 2026-10-06 (GOI->SVX, every baseline one day old).
+# A week of days makes it a history. A readiness rule, not a tuned threshold.
+MIN_HISTORY_DAYS = 7
 
 # --- the daily budget --------------------------------------------------
 # ORIGINS x MAX_DESTINATIONS x MONTHS_AHEAD is 240 cells, so a uniform daily

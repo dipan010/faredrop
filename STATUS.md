@@ -1,6 +1,6 @@
 # faredrop — Status
 
-Last reviewed: 2026-10-06 (night)
+Last reviewed: 2026-10-06
 
 | Built | Documented | Hosted | Posted |
 |---|---|---|---|
@@ -10,7 +10,7 @@ Last reviewed: 2026-10-06 (night)
 
 - Self-hosted fare-drop watcher on the Travelpayouts API, at https://github.com/dipan010/faredrop (public). Everything is committed and pushed.
 - README: "the price history is the product". Travelpayouts keeps only 7 days, so every day nothing collects is history lost for good.
-- **Collection days so far (UTC):** Oct 1 ✅ · Oct 2 ✅ 138/138 · **Oct 3 ❌ lost** (laptop asleep with no network) · Oct 4 ✅ 138/138 (completed by hand) · Oct 5 ✅ 138/138 on both GitHub and the laptop. Each day is 138 route-months.
+- **Collection days so far (UTC):** Oct 1 ✅ · Oct 2 ✅ 138/138 · **Oct 3 ❌ lost** (laptop asleep with no network) · Oct 4 ✅ 138/138 (completed by hand) · Oct 5 ✅ 138/138 on both GitHub and the laptop · Oct 6 ✅ 440/440 on GitHub (wide list, day one). Each day is 138 route-months.
 - **Two independent collectors**, each with its own database and never merged:
   - **GitHub Actions** (`collect.yml`): the official history. Runs every 2 hours (:47 past even UTC hours), restoring from and storing to AES-encrypted snapshots on the `data` prerelease (`dbstore.py`). Collected Oct 5 completely (138/138). Every run has been green, but GitHub's schedule is unpunctual: in the first day, 3 of 5 slots ran, 2.5–6 h late, and one never ran. So the schedule went from 4×/day to every 2 h on 2026-10-06.
   - **Laptop** (launchd, `daily.sh`): 07:15/13:15/19:15/23:15 IST, a safety net until Oct 10. Each run also runs `watchdog.py`, which alerts if GitHub's newest snapshot is >30h old.
@@ -35,8 +35,11 @@ Last reviewed: 2026-10-06 (night)
 
 ### Phase 2 — Let it accumulate, then calibrate
 - [x] Data volume (2026-10-06): measured yield was 0.18 new fares per call against a 0.5 placeholder, which put first baselines about 2 months out. An endpoint survey found `/v1/prices/calendar` (all cached round-trips per route in one call), and an origin survey found ~20× more data across Indian cities. Both are now collected.
+- [x] First wider run (2026-10-06 07:01 IST): 302 routes, 440/440 cells, 2,257 new fares, 0 failures, 8.5 min. It immediately built 35 baselines (DEL 19, GOI 10, BOM 6) and emailed one "deal": GOI→SVX, 2-stop, ₹46,575 vs ~₹83k, marked not re-checked.
+- [x] Fixes for what that deal exposed (2026-10-06): (1) baselines need data from ≥`MIN_HISTORY_DAYS` = 7 collection days, and each recompute starts clean, because all 35 were one day's spread across departure dates; (2) fares over `MAX_STOPS` are skipped, not flagged; (3) a Google Flights page listing no flights is "gone (nothing within the stop limit)", not an error that stops every re-check. Alerts go only for `ALERT_ORIGINS` = BLR, MAA, COK, HYD, GOI. On GitHub's data: 0 baselines and 0 deals now. Wide route-months reach 7 days from about **2026-10-12**, so expect first real deal emails from then.
+- [x] `gf-probe` (2026-10-06): 3/3 Google Flights lookups answered from GitHub's network. Re-checks work there, and Google Flights is viable as a second source if wanted.
 - [ ] Phase 2 modelling: calendar fares are per-day minima and `/cheap` fares per-month minima. Check whether pooling them skews the baseline; split by `fare_observation.source` if it does.
-- [ ] Google Flights as a second source: `gf-probe` workflow (manual) tests whether GitHub's network can reach it. Scaling it to a collector is the user's call (it's scraping, against Google's terms).
+- [ ] Google Flights as a second source: reachable from GitHub (gf-probe 3/3). Scaling it to a collector is the user's call (it's scraping, against Google's terms).
 - [ ] Snapshots grow with every run (~440 calls/day of raw payloads). Consider skipping the upload when a run changed nothing.
 - [ ] After about 4 days, compare `schedule.measured_yield()` with the `QUOTES_PER_CALL = 0.5` placeholder. The endpoint returns at most one cheapest fare per stop count per call, so if yield is far lower, reaching 12 distinct fares per route-month could take months.
 - [ ] After ~4–6 weeks, check `digest.py` data-readiness per route. Note that each route-month mixes stay lengths (1–38 days seen on day one).

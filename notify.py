@@ -69,13 +69,18 @@ def pending(conn, limit=25, window_days=None):
     # Off by default -- see VERIFY_SUPPRESS_GONE in config.py.
     gone = (" AND gf_status IS NOT 'gone'" if config.VERIFY_SUPPRESS_GONE
             else "")
+    # Only the departure cities you fly from (config.ALERT_ORIGINS). Deals
+    # elsewhere are still detected and listed by digest.py, just not sent.
+    origins = sorted(config.ALERT_ORIGINS)
+    marks = ",".join("?" * len(origins))
     return conn.execute(
         f"""
         SELECT * FROM deal
         WHERE notified_at IS NULL AND detected_at >= ?{gone}
+          AND origin IN ({marks})
         ORDER BY (kind='mistake') DESC, outlier_z DESC, discount_pct DESC
         LIMIT ?
-        """, (since, limit)).fetchall()
+        """, (since, *origins, limit)).fetchall()
 
 
 def _place(code, airports):
@@ -115,6 +120,9 @@ def _recheck(d):
     status = get("gf_status")
     if status not in ("still", "gone"):
         return "  not re-checked on Google Flights"
+    if get("gf_price") is None:             # verify.py found nothing to fit
+        return (f"  ! Google Flights has no itinerary within "
+                f"{config.MAX_STOPS} stop(s) -- may already be gone")
     via = get("gf_via")
     route = ("" if via is None else
              " non-stop" if via == "" else f" via {via.replace(',', ', ')}")

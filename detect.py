@@ -153,8 +153,14 @@ def run(conn, window_days=None):
         (config.MIN_OBSERVATIONS, now, window_start),
     ).fetchall()
 
-    found = suppressed = 0
+    found = suppressed = over_stops = 0
     for o in rows:
+        # The quality bar is a filter, not a footnote: a fare with more stops
+        # than MAX_STOPS is not a deal however cheap (GOI->SVX on 2026-10-06
+        # was emailed with "2 stops" as a mere flag).
+        if o["stops"] is not None and o["stops"] > config.MAX_STOPS:
+            over_stops += 1
+            continue
         dtd = _days_to_departure(o["depart_date"], o["fetched_at"])
         bucket = baseline.bucket_for(dtd)
         route_key = (o["origin"], o["destination"], o["trip_class"])
@@ -199,7 +205,8 @@ def run(conn, window_days=None):
 
     conn.commit()
     return {"candidates_examined": len(rows), "deals_found": found,
-            "repeats_suppressed": suppressed, "window_days": window_days}
+            "repeats_suppressed": suppressed, "over_stop_limit": over_stops,
+            "window_days": window_days}
 
 
 if __name__ == "__main__":

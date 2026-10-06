@@ -91,12 +91,15 @@ def cheapest(payload):
     Google's array positions are the one fragile thing in this module, so
     they live only in this function.
     """
-    found = []
+    found, readable, listed = [], False, 0
     for i in (2, 3):
         try:
-            items = payload[i][0] or []
+            block = payload[i]
+            items = (block[0] if block else None) or []
         except (IndexError, TypeError):
             continue
+        readable = True
+        listed += len(items)
         for item in items:
             try:
                 price = item[1][0][1]
@@ -109,9 +112,16 @@ def cheapest(payload):
             except (IndexError, TypeError, ValueError):
                 continue
     if not found:
-        # An itinerary with no flights at all is far likelier to be a page
-        # we failed to parse than a route that vanished.
-        raise RuntimeError("no priced results")
+        if not readable or listed:
+            # Neither list where it should be (the page changed, or we were
+            # served something else), or flights listed with no price we can
+            # read. Either way we don't know, so it is a failure, not "gone".
+            raise RuntimeError("no priced results")
+        # The page read fine and simply has nothing that fits the query:
+        # no itinerary within MAX_STOPS on those dates. An answer, not a
+        # failure (GOI->SVX on 2026-10-06 was 2-stop only, and treating it
+        # as an error stopped every other re-check that day).
+        return None
     return min(found, key=lambda f: f["price"])
 
 
@@ -177,10 +187,16 @@ def run(conn, fetch=None, limit=None, pause=None, dry_run=False, now=None):
             record(d, "error")
             out["status"] = f"stopped: {exc}"
             break
+        out["checked"] += 1
+        if live is None:                    # nothing within the quality bar
+            record(d, "gone", {"price": None, "via": None})
+            if dry_run:
+                print(f"  {d['origin']}->{d['destination']} {d['depart_date']}"
+                      f"  no itinerary within {config.MAX_STOPS} stop(s)  gone")
+            continue
         if not isinstance(live, dict):      # a bare price is enough
             live = {"price": live}
         live["price"] = float(live["price"])
-        out["checked"] += 1
         status = "still" if still_a_deal(d, live["price"]) else "gone"
         record(d, status, live)
         if dry_run:

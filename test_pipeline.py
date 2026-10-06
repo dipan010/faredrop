@@ -263,6 +263,52 @@ def main():
         check("a big percentage off pocket change is not a deal",
               c3.execute("SELECT count(*) FROM deal").fetchone()[0] == 0)
 
+        print("\nmodel: a history, not one day's spread")
+        c12 = db.connect(str(Path(tmp) / "history.db"))
+        far12 = (NOW + timedelta(days=60)).date()
+        random.seed(12)
+        # 20 distinct quotes for 20 departure dates, all seen the same day:
+        # what one calendar call returns for a busy route-month.
+        one_day = [{**rows[0], "price": float(random.gauss(40000, 3000)),
+                    "depart_date": (far12 + timedelta(days=i % 25)).isoformat(),
+                    "depart_month": far12.isoformat()[:7], "fetched_at": at(0)}
+                   for i in range(20)]
+        collect._insert(c12, one_day)
+        r12 = baseline.compute(c12)
+        check(f"one day of quotes, however many, is no baseline "
+              f"({r12['cells_short_history']} short)",
+              r12["cells_written"] == 0 and r12["cells_short_history"] == 1)
+        collect._insert(c12, [{**q, "fetched_at": at(d + 1)}
+                              for d, q in enumerate(one_day[:config.MIN_HISTORY_DAYS])])
+        check(f"{config.MIN_HISTORY_DAYS} days of them is",
+              baseline.compute(c12)["cells_written"] == 1)
+        baseline.compute(c12, min_history_days=99)
+        check("and a cell that stops qualifying loses its old baseline",
+              c12.execute("SELECT count(*) FROM baseline").fetchone()[0] == 0)
+
+        print("\nmodel: the quality bar is a filter")
+        c13 = db.connect(str(Path(tmp) / "stops.db"))
+        far13 = (NOW + timedelta(days=60)).date().isoformat()
+        random.seed(13)
+        collect._insert(c13, [
+            {**rows[0], "price": float(random.gauss(40000, 2000)),
+             "depart_date": far13, "depart_month": far13[:7],
+             "fetched_at": at(1 + i)} for i in range(20)])
+        collect._insert(c13, [
+            {**rows[0], "price": 14000.0, "depart_date": far13,
+             "depart_month": far13[:7], "airline": "S2", "stops": 2,
+             "fetched_at": at(0), "expires_at": None},
+            {**rows[0], "price": 14500.0, "depart_date": far13,
+             "depart_month": far13[:7], "airline": "S1", "stops": 1,
+             "flight_number": "1", "fetched_at": at(0), "expires_at": None}])
+        baseline.compute(c13)
+        r13 = detect.run(c13)
+        check(f"a fare over MAX_STOPS is not a deal, however cheap "
+              f"({r13['over_stop_limit']} skipped, {r13['deals_found']} found)",
+              r13["over_stop_limit"] == 1 and r13["deals_found"] == 1
+              and c13.execute("SELECT airline FROM fare_observation f JOIN deal d"
+                              " ON d.observation_id = f.id").fetchone()[0] == "S1")
+
         print("\nmodel: the recency window")
         c4 = db.connect(str(Path(tmp) / "recency.db"))
         far_off = (NOW + timedelta(days=60)).date().isoformat()
@@ -486,6 +532,30 @@ def main():
         check("no scraper installed is a clean skip",
               r12["status"].startswith("unavailable") and r12["checked"] == 0)
 
+        print("\nonly the cities you fly from are emailed")
+        c14 = db.connect(str(Path(tmp) / "origins.db"))
+        for i, origin in enumerate(("DEL", "GOI", "BLR")):
+            c14.execute(
+                "INSERT INTO deal (observation_id, origin, destination,"
+                " depart_date, return_date, trip_class, price, baseline_p50,"
+                " discount_pct, kind, flags, fingerprint, detected_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (i, origin, "DXB", far7, far7, 0, 10000.0, 30000.0, 60.0,
+                 "drop", "[]", f"o{i}", at(0)))
+        c14.commit()
+        check("a deal from a city not in ALERT_ORIGINS is kept but not sent",
+              sorted(d["origin"] for d in notify.pending(c14)) == ["BLR", "GOI"]
+              and c14.execute("SELECT count(*) FROM deal").fetchone()[0] == 3)
+        c15 = db.connect(str(Path(tmp) / "none.db"))
+        put(c15, 1, price=12000.0)
+        r15 = verify.run(c15, fetch=lambda d: None, pause=0)
+        box15 = []
+        notify.run(c15, sender=box15.append)
+        check("no itinerary within the stop limit is 'gone', and the run goes on",
+              r15["gone"] == 1 and r15["status"] == "ok"
+              and "no itinerary within 1 stop(s)"
+              in box15[0].get_body(preferencelist=("plain",)).get_content())
+
         print("\nreading the Google Flights page")
         # Shaped like the page seen on 2026-10-02: leg = [.., .., .., from,
         # name, name, to, ...]; item = [[type, airlines, legs], [[_, price]]].
@@ -515,7 +585,10 @@ def main():
             ok = False
         except RuntimeError:
             ok = True
-        check("a page with no priced fare at all is an error", ok)
+        check("flights listed but none priced is an error, not 'gone'", ok)
+        check("a page that lists no flights at all means none fit the query",
+              verify.cheapest([None, None, None, None]) is None
+              and verify.cheapest([None, None, [[]], [[]]]) is None)
 
         c11 = db.connect(str(Path(tmp) / "verify3.db"))
         put(c11, 1, price=12000.0)
