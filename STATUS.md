@@ -69,5 +69,30 @@ Last reviewed: 2026-10-06
 - [ ] Optional read-only digest page (static, regenerated daily).
 - [ ] Write-up comparing it with the Zomunk model it reproduces; link here.
 
+## Roadmap after Oct 11 (agreed 2026-10-06)
+
+No app yet. The value is in deal quality, which is unproven until real deals
+arrive (from ~2026-10-12). Three stages, with a decision point after the first two.
+
+### Stage 1: prove the deals are good (2026-10-12 → early Nov, ~3–4 weeks)
+- [ ] A verdict on every deal: a small private review page with "good / not for me / wrong" per deal. The verdicts are the evidence for tuning.
+- [ ] Tune on real data only: `DEAL_RATIO` / `MIN_ABS_SAVING` / `MISTAKE_Z`; per-day (calendar) vs per-month (/cheap) minima modelled apart if pooling skews; `VERIFY_SUPPRESS_GONE` on or off.
+- [ ] Track deals/week for `ALERT_ORIGINS`, the share worth booking, and the Google Flights confirmation rate.
+- **Exit:** a steady flow of deals the user would genuinely consider. If too thin, Stage 2 matters more than any app.
+
+### Stage 2: fix the data's blind spot (can overlap Stage 1)
+- Travelpayouts mirrors Aviasales' mostly Russian/CIS users: rich for MOW/CMB, near-empty for LON, SIN, TYO and the US, which are the deals Indian travellers want.
+- [ ] Option: Google Flights (fast-flights) as a second collection source, limited to `ALERT_ORIGINS` × ~30 curated destinations. Reachable from GitHub (gf-probe 3/3). Trade-off: scraping against Google's terms. Tolerable for personal use, a liability if it is ever sold. **User's call.**
+
+### Decision point (~early Nov): personal tool or product?
+| | Personal tool | Product (Zomunk competitor) |
+|---|---|---|
+| Interface | Email + simple private page; no app | Signup, subscriptions, web dashboard, then maybe mobile |
+| Data source | Scraping tolerable | Needs a licensed source |
+| Quality bar | User's judgement | Bag and transit-visa checks, human review queue, reliable delivery |
+| Effort | Weeks | Months, and a business |
+
+Even for a product: a public web page + email list before any mobile app, to test demand cheaply. If the user leans one way before then, shape Stage 1 for it (e.g. a multi-reviewer review page for a product).
+
 ## Definition of done
 Collecting daily · calibrated on real history · backed up · (optional) hosted digest and write-up.
