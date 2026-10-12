@@ -729,6 +729,29 @@ def main():
               len(calls_b) == 1 and rb["status"].startswith("stopped")
               and cb.execute("SELECT ok FROM gf_raw").fetchall()[0][0] == 0)
 
+        cv = db.connect(str(Path(tmp) / "review.db"))
+        rv = gfcollect.run(cv, fetch=lambda *a: gpage(30000), today=today_g,
+                           rng=random.Random(5), pause=0,
+                           routes=[("BLR", "DXB")],
+                           review_routes=[("DEL", "DXB"), ("BOM", "DXB")])
+        reasons = [r[0] for r in cv.execute("SELECT reason FROM gf_quote")]
+        check(f"a share of lookups explores other cities for review ({reasons.count('review')})",
+              "review" in reasons and reasons.count("review") < len(reasons))
+        gfcollect.run(cv, fetch=lambda *a: gpage(30200), today=today_g,
+                      rng=random.Random(6), pause=0, routes=[("BLR", "DXB")],
+                      review_routes=[("DEL", "DXB"), ("BOM", "DXB")])
+        config.VERIFY_REQUIRE_CONFIRMED = True
+        try:
+            sent_origins = {d["origin"] for d in notify.pending(cv)}
+        finally:
+            config.VERIFY_REQUIRE_CONFIRMED = False
+        found_origins = {r[0] for r in cv.execute("SELECT origin FROM deal")}
+        check(f"their deals are recorded ({sorted(found_origins)}) but only yours are emailed",
+              found_origins - {"BLR"} and sent_origins <= {"BLR"})
+        check("the real review list is other Indian cities, never yours",
+              gfcollect.review_watched() and not any(
+                  o in config.ALERT_ORIGINS for o, _ in gfcollect.review_watched()))
+
         print("\nGoogle refusals: retry once, never lose a find")
         co = db.connect(str(Path(tmp) / "owed.db"))
         state = {"n": 0}

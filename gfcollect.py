@@ -62,6 +62,16 @@ def watched(dests=None):
     return [(o, d) for o in sorted(config.ALERT_ORIGINS) for d in dests]
 
 
+def review_watched(dests=None):
+    """The other Indian origins (from routes.json) to the same destinations:
+    explored for the review page only, never emailed."""
+    import routes as routes_file
+    dests = dests if dests is not None else destinations()
+    others = sorted({o for o, _, _ in routes_file.wanted()}
+                    - set(config.ALERT_ORIGINS))
+    return [(o, d) for o in others for d in dests if o != d]
+
+
 # --- reading the page ----------------------------------------------------
 
 def insights(payload):
@@ -258,7 +268,7 @@ def owed(conn, today):
 
 
 def run(conn, fetch=None, today=None, rng=None, pause=None, dry_run=False,
-        routes=None, refused_wait=None):
+        routes=None, refused_wait=None, review_routes=None):
     """One collection run. `fetch` and `routes` are injectable for tests."""
     fetch = fetch or page
     today = today or datetime.now(timezone.utc).date()
@@ -266,6 +276,9 @@ def run(conn, fetch=None, today=None, rng=None, pause=None, dry_run=False,
     pause = config.GF_PAUSE_SECONDS if pause is None else pause
     refused_wait = (config.GF_REFUSED_WAIT_SECONDS if refused_wait is None
                     else refused_wait)
+    if review_routes is None:
+        # Production defaults; a caller passing its own routes gets no extras.
+        review_routes = review_watched() if routes is None else []
     routes = routes if routes is not None else watched()
     stats = {"budget_left": 0, "owed_confirmed": 0, "looked_up": 0,
              "with_insights": 0, "candidates": 0, "deals": 0, "retries": 0,
@@ -279,11 +292,16 @@ def run(conn, fetch=None, today=None, rng=None, pause=None, dry_run=False,
         return stats
     # Leave room in the run for a confirming lookup per likely candidate.
     trips_n = max(1, (left * 2) // 3)
-    n_explore = int(round(trips_n * config.GF_EXPLORE_SHARE))
+    n_review = (int(round(trips_n * config.GF_REVIEW_SHARE))
+                if review_routes and trips_n > 1 else 0)
+    mine = trips_n - n_review
+    n_explore = int(round(mine * config.GF_EXPLORE_SHARE))
     trips = [(t, "discovery") for t in
-             discovery(conn, routes, today, trips_n - n_explore)]
+             discovery(conn, routes, today, mine - n_explore)]
     trips += [(t, "exploration") for t in
-              exploration(conn, routes, today, trips_n - len(trips), rng)]
+              exploration(conn, routes, today, mine - len(trips), rng)]
+    trips += [(t, "review") for t in
+              exploration(conn, review_routes, today, n_review, rng)]
     if dry_run:
         for t, why in trips:
             print(f"  would look up {t[0]}->{t[1]} {t[2]}..{t[3]} ({why})")

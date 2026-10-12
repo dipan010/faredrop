@@ -54,6 +54,12 @@ GF_ROUTES_FILE = "gf_routes.json"
 GF_HORIZON_DAYS = (7, 180)        # departures this far ahead
 GF_NIGHTS = (2, 21)               # trip lengths considered, any in between
 GF_EXPLORE_SHARE = 0.3            # of lookups spent on random trips
+# Of each run's new lookups, this share explores the OTHER Indian origins in
+# routes.json (random trips to the same destinations). Their deals are never
+# emailed (notify filters on ALERT_ORIGINS); they exist to put more confirmed
+# deals on the review page, so the rules can be tuned on verdicts by ~Oct 30
+# rather than mid-November (chosen 2026-10-12).
+GF_REVIEW_SHARE = 0.25
 GF_RECHECK_DAYS = 3               # don't look the same trip up again sooner
 GF_RAW_KEEP_DAYS = 14
 # A Google-sourced deal: the fare is at or below the bottom of Google's own

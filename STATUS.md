@@ -69,6 +69,13 @@ Last reviewed: 2026-10-12
 - [ ] Optional read-only digest page (static, regenerated daily).
 - [ ] Write-up comparing it with the Zomunk model it reproduces; link here.
 
+## Target dates (agreed 2026-10-12)
+- **~2026-10-18: usable.** Deal emails for `ALERT_ORIGINS` that have passed confirmation in a later run plus the Travelpayouts cross-check. Thresholds are still placeholders.
+- **~2026-10-30: done (personal tool).** Rules tuned on ~15 rated deals; a known hit rate.
+- Levers in place for that: `GF_REVIEW_SHARE` (25% of Google lookups explore the 16 other origins × the 25 destinations, review page only, never emailed); Stage 1 shortened to 2 weeks.
+- [ ] **2026-10-15 decision:** Google answer rate from GitHub (`gf_raw.ok` by day). If no blocks have stuck, raise `GF_DAILY_LOOKUPS` (40 → 80). If the answer rate is too low for these dates, say so and re-plan rather than slip quietly.
+- [ ] Review page refresh is manual, in a session ("refresh the review page"): every 2–3 days until Oct 30, so verdicts keep pace.
+
 ## Roadmap after Oct 11 (agreed 2026-10-06)
 
 No app yet. The value is in deal quality, which is unproven until real deals
@@ -90,7 +97,7 @@ arrive (from ~2026-10-12). Three stages, with a decision point after the first t
 ### Stage 3 (later): traveller mode
 - [ ] Holiday and festival awareness: tag or rank deals covering Indian long weekends, Diwali, Christmas and school holidays (a free holiday calendar). Occupancy has no free source; Google's 62-day price history is a partial demand proxy. Learn "mindset" from review-page verdicts rather than guessing it. Only once deals are trustworthy.
 
-### Stage 1: prove the deals are good (2026-10-12 → early Nov, ~3–4 weeks)
+### Stage 1: prove the deals are good (2026-10-12 → ~2026-10-30, shortened to 2 weeks)
 - Status 2026-10-12: 92 route-months ready (DEL 41, GOI 26, BOM 15, BLR 4, TRV 4, CCU 1, COK 1); yield 3.0 new fares per call, against 0.18 before the calendar. First real deals were detected 2026-10-12 00:09Z, all from DEL so not emailed: DEL→KTM ₹18,255 vs ~₹33k (AI non-stop, ×2 dates) and DEL→MOW ₹29,933 vs ~₹53.6k (1 stop). Only GOI, BLR and COK of `ALERT_ORIGINS` have baselines yet; MAA and HYD have none.
 - [x] Review page live 2026-10-12: https://claude.ai/artifact/FKn5RLNgx8sxmbBpLoYZc4 (private to the user). Deals sit in its `deals` collection and the user's verdicts in `verdicts/<deal id>` (`verdict`: good / not_for_me / wrong, optional `note`). It shows every city, with `ALERT_ORIGINS` highlighted. Seeded with the 3 DEL deals; the old 2-stop GOI→SVX is left out because it fails current rules.
 - [ ] Refreshing it is manual for now: in a session, decrypt GitHub's newest snapshot into a scratch path, build rows for deals not yet on the page, and batch-write them to `deals` (never overwrite `verdicts`). Automate it only if Stage 1 shows the page earns its keep.
@@ -102,7 +109,11 @@ arrive (from ~2026-10-12). Three stages, with a decision point after the first t
 - Travelpayouts mirrors Aviasales' mostly Russian/CIS users: rich for MOW/CMB, near-empty for LON, SIN, TYO and the US, which are the deals Indian travellers want.
 - [ ] Option: Google Flights (fast-flights) as a second collection source, limited to `ALERT_ORIGINS` × ~30 curated destinations. Reachable from GitHub (gf-probe 3/3). Trade-off: scraping against Google's terms. Tolerable for personal use, a liability if it is ever sold. **User's call.**
 
-### Decision point (~early Nov): personal tool or product?
+### AI-quality role focus (added 2026-10-12)
+Evidence for an AI-quality / evals role: a system that runs every day, human verdicts on its output (review page: good / not_for_me / wrong), and quality failures traced to a cause and fixed (Russian-market fares; Google's incomplete page). No new tasks: Stage 1's tracking is the evidence.
+- [ ] At the end of Stage 1, write up alert precision from the verdicts (share of emailed deals marked good, before and after each fix), with the sample size stated.
+
+### Decision point (~2026-10-30): personal tool or product?
 | | Personal tool | Product (Zomunk competitor) |
 |---|---|---|
 | Interface | Email + simple private page; no app | Signup, subscriptions, web dashboard, then maybe mobile |
