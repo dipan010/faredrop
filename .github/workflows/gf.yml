@@ -1,0 +1,62 @@
+# Google Flights deals, hourly. Each run gets a different GitHub runner
+# address, and Google answers each address only a request or two before
+# refusing (2026-10-12), so more, smaller runs is how lookups get through.
+# The Travelpayouts collector stays in collect.yml; this only runs
+# gfcollect.py (within the shared GF_DAILY_LOOKUPS budget) and sends what it
+# finds.
+name: gf
+
+on:
+  schedule:
+    # :17 past every hour, UTC -- clear of collect.yml's :47 slots.
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write          # store a new snapshot on the data release
+
+# The same queue as collect.yml: both restore and store the same snapshot,
+# so they must never overlap, and are never cancelled midway.
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  gf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FAREDROP_DB_KEY: ${{ secrets.FAREDROP_DB_KEY }}
+      SMTP_HOST: ${{ secrets.SMTP_HOST }}
+      SMTP_USER: ${{ secrets.SMTP_USER }}
+      SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+      ALERT_TO: ${{ secrets.ALERT_TO }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-verify.txt
+
+      - run: pip install -r requirements-verify.txt
+
+      # Fails the job before anything runs on an empty database.
+      - name: Restore the history
+        id: pull
+        run: python3 dbstore.py pull
+
+      - name: Google Flights deals
+        timeout-minutes: 20
+        continue-on-error: true
+        run: |
+          python3 gfcollect.py || echo "::warning::gfcollect failed"
+          python3 notify.py || echo "::warning::notify failed"
+
+      # Only when this run made Google requests: after the day's budget is
+      # spent, the remaining hourly runs store nothing.
+      - name: Store the history
+        if: always() && steps.pull.outcome == 'success' && hashFiles('data/.gf_changed') != ''
+        run: python3 dbstore.py push

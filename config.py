@@ -202,7 +202,11 @@ VERIFY_MAX_PER_RUN = 10
 # raise only after days without a block.
 GF_DAILY_LOOKUPS = 40
 GF_PER_RUN = 15
-VERIFY_PAUSE_SECONDS = 5
+# Google refuses quick repeat requests from one GitHub runner address (first
+# answered, the rest refused, 2026-10-12). So lookups are spaced out, and a
+# refusal earns one retry after a longer wait before the run gives up.
+GF_PAUSE_SECONDS = 40             # +/- 25% jitter
+GF_REFUSED_WAIT_SECONDS = 90
 # A deal already re-checked within this many hours is not looked up again.
 VERIFY_RECHECK_HOURS = 20
 # Email a deal only once Google Flights has confirmed it: the live price for

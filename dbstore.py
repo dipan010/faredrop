@@ -41,9 +41,11 @@ PULLED = Path("data/.pulled_responses")   # row count at pull, for push's guard
 NAME = re.compile(r"^faredrop-(\d{4}-\d{2}-\d{2})T(\d{4})Z-[\w-]+\.db\.enc$")
 # How many recent snapshots pull will fall back through if the newest is bad.
 FALLBACK = 3
-# Pruning: every snapshot from the last day is kept, then the newest per day
-# for KEEP_DAYS days.
+# Pruning: the newest RECENT_KEEP snapshots, then the newest per day for
+# KEEP_DAYS days. (Until 2026-10-12 it kept every snapshot of the last two
+# days; hourly Google runs made that ~60 copies of a ~10 MB file.)
 KEEP_DAYS = 14
+RECENT_KEEP = 12
 CIPHER = ["-aes-256-cbc", "-pbkdf2", "-iter", "200000"]
 
 
@@ -59,17 +61,13 @@ def newest_first(names):
 
 def to_prune(names, today):
     """Snapshot names safe to delete. Pure, so it can be tested."""
-    keep, seen_days = set(), set()
-    for n in newest_first(names):
-        day = date.fromisoformat(NAME.match(n).group(1))
-        age = (today - day).days
-        if age <= 1:
-            keep.add(n)                     # today and yesterday: all of them
-        elif age <= KEEP_DAYS and day not in seen_days:
-            keep.add(n)                     # older: newest of each day
-        seen_days.add(day)
     snaps = newest_first(names)
-    keep.update(snaps[:FALLBACK])           # never prune below the fallbacks
+    keep, seen_days = set(snaps[:max(RECENT_KEEP, FALLBACK)]), set()
+    for n in snaps:
+        day = date.fromisoformat(NAME.match(n).group(1))
+        if (today - day).days <= KEEP_DAYS and day not in seen_days:
+            keep.add(n)                     # newest of each day
+        seen_days.add(day)
     return [n for n in snaps if n not in keep]
 
 

@@ -349,8 +349,16 @@ exactly what deal detection picks.
   compressed (~9 KB) before it is read. Bodies are kept 14 days; parsed
   rows are kept for good.
 - **Budget:** `GF_DAILY_LOOKUPS` (40) Google requests a day, shared with the
-  re-check, at most `GF_PER_RUN` (15) per run. The first failure ends a run.
-  It is scraping, against Google's terms, so it is kept small.
+  re-check, at most `GF_PER_RUN` (15) per run. It is scraping, against
+  Google's terms, so it is kept small.
+- **Getting answers from GitHub:** Google answers each GitHub runner address
+  only a request or two before refusing. So `gf.yml` runs hourly (each run
+  gets a new address), lookups are spaced ~40 s apart, and a refusal gets one
+  retry after 90 s before the run stops. A candidate whose confirming search
+  was refused is owed: the next run confirms it first. `gf.yml` shares
+  `collect.yml`'s queue (they store the same snapshot). GitHub keeps one
+  waiting run per queue, so an hourly Google run can cancel a waiting
+  collect run. That costs one of collect's 12 daily slots, never the day.
 
 ## Running on GitHub Actions
 

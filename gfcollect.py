@@ -217,16 +217,31 @@ def _record_deal(conn, trip, quote_id, q, best, now):
     return True
 
 
+def owed(conn, today):
+    """Candidates from the last two days whose confirming search never got
+    an answer (refused, or the run's budget ran out), still in the future.
+    Found trips are rare; one is never dropped for want of a second request."""
+    since = (today - timedelta(days=2)).isoformat()
+    return [r for r in conn.execute(
+        "SELECT * FROM gf_quote WHERE confirm IS NULL"
+        " AND usual IS NOT NULL AND substr(fetched_at, 1, 10) >= ?"
+        " AND depart_date > ? ORDER BY fetched_at", (since, today.isoformat()))
+        if is_candidate(r)]
+
+
 def run(conn, fetch=None, today=None, rng=None, pause=None, dry_run=False,
-        routes=None):
+        routes=None, refused_wait=None):
     """One collection run. `fetch` and `routes` are injectable for tests."""
     fetch = fetch or page
     today = today or datetime.now(timezone.utc).date()
     rng = rng or random.Random()
-    pause = 5 if pause is None else pause
+    pause = config.GF_PAUSE_SECONDS if pause is None else pause
+    refused_wait = (config.GF_REFUSED_WAIT_SECONDS if refused_wait is None
+                    else refused_wait)
     routes = routes if routes is not None else watched()
-    stats = {"budget_left": 0, "looked_up": 0, "with_insights": 0,
-             "candidates": 0, "deals": 0, "status": "ok"}
+    stats = {"budget_left": 0, "owed_confirmed": 0, "looked_up": 0,
+             "with_insights": 0, "candidates": 0, "deals": 0, "retries": 0,
+             "status": "ok"}
 
     left = min(config.GF_PER_RUN,
                config.GF_DAILY_LOOKUPS - verify.lookups_today(conn, today))
@@ -249,23 +264,50 @@ def run(conn, fetch=None, today=None, rng=None, pause=None, dry_run=False,
 
     used = 0
 
-    def lookup(trip, filtered, purpose):
+    def lookup(trip, filtered, purpose, retried=False):
         nonlocal used
         if used and pause:
-            time.sleep(pause)
+            time.sleep(pause * rng.uniform(0.75, 1.25))
         used += 1
         now = datetime.now(timezone.utc).isoformat(timespec="seconds")
         try:
             payload = fetch(*trip, filtered)
         except verify.Unavailable:
             raise
+        except verify.Refused as exc:
+            _store_raw(conn, trip, filtered, purpose, None, False, now)
+            if retried or used >= left:
+                raise RuntimeError(f"{trip[0]}->{trip[1]}: {exc}") from exc
+            # One retry, after a longer wait: refusals come in quick bursts.
+            stats["retries"] += 1
+            if refused_wait:
+                time.sleep(refused_wait)
+            return lookup(trip, filtered, purpose, retried=True)
         except Exception as exc:          # noqa: BLE001 - stop, don't retry
             _store_raw(conn, trip, filtered, purpose, None, False, now)
             raise RuntimeError(f"{trip[0]}->{trip[1]}: {exc}") from exc
         return _store_raw(conn, trip, filtered, purpose, payload, True,
                           now), payload, now
 
+    def confirm(trip, quote_id, q):
+        """The filtered search for a candidate; records the answer."""
+        _, filtered_payload, now = lookup(trip, True, "confirm")
+        best = verify.cheapest(filtered_payload)
+        ok = bool(best and is_candidate({**q, "price": best["price"]}))
+        conn.execute("UPDATE gf_quote SET confirm = ? WHERE id = ?",
+                     ("deal" if ok else "not_bookable", quote_id))
+        conn.commit()
+        if ok:
+            stats["deals"] += _record_deal(conn, trip, quote_id, q, best, now)
+
     try:
+        for r in owed(conn, today):
+            if used >= left:
+                break
+            trip = (r["origin"], r["destination"], r["depart_date"],
+                    r["return_date"])
+            confirm(trip, r["id"], dict(r))
+            stats["owed_confirmed"] += 1
         for trip, why in trips:
             if used >= left:
                 break
@@ -291,16 +333,16 @@ def run(conn, fetch=None, today=None, rng=None, pause=None, dry_run=False,
             if not q:
                 continue
             stats["with_insights"] += 1
-            if not is_candidate(q) or used >= left:
+            if not is_candidate(q):
+                continue
+            if used >= left:              # owed: next run confirms it first
+                stats["candidates"] += 1
                 continue
             stats["candidates"] += 1
             # Judged unfiltered (that is where the insights are); booked
-            # filtered. The bookable fare must clear the same bar.
-            _, filtered_payload, now = lookup(trip, True, "confirm")
-            best = verify.cheapest(filtered_payload)
-            if best and is_candidate({**q, "price": best["price"]}):
-                stats["deals"] += _record_deal(conn, trip, cur.lastrowid, q,
-                                               best, now)
+            # filtered. The bookable fare must clear the same bar. A refusal
+            # here leaves it owed, to be confirmed first next run.
+            confirm(trip, cur.lastrowid, q)
     except verify.Unavailable as exc:
         stats["status"] = f"unavailable: {exc}"
     except Exception as exc:              # noqa: BLE001 - see module doc
@@ -317,9 +359,18 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
-    res = run(db.connect(), dry_run=args.dry_run)
+    conn = db.connect()
+    before = conn.execute("SELECT count(*) FROM gf_raw").fetchone()[0]
+    res = run(conn, dry_run=args.dry_run)
     for k, v in res.items():
         print(f"  {k:14} {v}")
+    # Tells the hourly workflow whether there is anything new to store, so a
+    # run after the day's budget is spent uploads no identical snapshot.
+    marker = Path(config.DB_PATH).with_name(".gf_changed")
+    if conn.execute("SELECT count(*) FROM gf_raw").fetchone()[0] > before:
+        marker.write_text("1")
+    else:
+        marker.unlink(missing_ok=True)
     print(f"google: {res['looked_up']} lookups this run, status {res['status']}")
     if res["status"].startswith("stopped"):
         sys.exit(0)   # a block is reported, never fatal to the workflow

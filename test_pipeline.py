@@ -555,8 +555,8 @@ def main():
                 (i, origin, "DXB", far7, far7, 0, 10000.0, 30000.0,
                  70.0 if origin == "DEL" else 50.0, "drop", "[]", f"a{i}", at(0)))
         c16.commit()
-        check("deals from every city are re-checked, the alert cities first",
-              [d["origin"] for d in verify.due(c16, NOW)] == ["GOI", "DEL"])
+        check("only the alert cities' deals are re-checked; the rest can't be sent",
+              [d["origin"] for d in verify.due(c16, NOW)] == ["GOI"])
 
         print("\nonly the cities you fly from are emailed")
         c14 = db.connect(str(Path(tmp) / "origins.db"))
@@ -693,6 +693,49 @@ def main():
         check("the first failure ends the run, and is counted and kept",
               len(calls_b) == 1 and rb["status"].startswith("stopped")
               and cb.execute("SELECT ok FROM gf_raw").fetchall()[0][0] == 0)
+
+        print("\nGoogle refusals: retry once, never lose a find")
+        co = db.connect(str(Path(tmp) / "owed.db"))
+        state = {"n": 0}
+
+        def judge_ok_confirm_refused(origin, dest, depart, ret, filtered):
+            state["n"] += 1
+            if filtered:
+                raise verify.Refused("Google Flights refused the search")
+            return gpage(30000)
+        r1 = gfcollect.run(co, fetch=judge_ok_confirm_refused, today=today_g,
+                           rng=random.Random(3), pause=0, refused_wait=0,
+                           routes=[("BLR", "DXB")])
+        check(f"a refused confirmation is retried once, then the run stops ({r1['status'][:30]})",
+              r1["retries"] == 1 and r1["status"].startswith("stopped")
+              and r1["deals"] == 0)
+        check("and the find is kept as owed, not dropped",
+              len(gfcollect.owed(co, today_g)) == 1)
+        calls_o = []
+
+        def all_ok(origin, dest, depart, ret, filtered):
+            calls_o.append(filtered)
+            return gpage(30500 if filtered else 30000)
+        r2 = gfcollect.run(co, fetch=all_ok, today=today_g,
+                           rng=random.Random(3), pause=0, refused_wait=0,
+                           routes=[("BLR", "DXB")])
+        check(f"the next run confirms it first ({r2['owed_confirmed']} owed confirmed)",
+              calls_o[0] is True and r2["owed_confirmed"] == 1
+              and co.execute("SELECT count(*) FROM deal").fetchone()[0] >= 1
+              and gfcollect.owed(co, today_g) == [])
+        cr = db.connect(str(Path(tmp) / "refused_once.db"))
+        flip = {"refused": False}
+
+        def refused_once(origin, dest, depart, ret, filtered):
+            if not flip["refused"]:
+                flip["refused"] = True
+                raise verify.Refused("Google Flights refused the search")
+            return gpage(36000)
+        r3 = gfcollect.run(cr, fetch=refused_once, today=today_g,
+                           rng=random.Random(4), pause=0, refused_wait=0,
+                           routes=[("BLR", "DXB"), ("BLR", "SIN")])
+        check("one refusal and the retry answers: the run carries on",
+              r3["retries"] == 1 and r3["status"] == "ok" and r3["looked_up"] >= 2)
 
         print("\nreading the Google Flights page")
         for tail in (", sideChannel: {}});", "});", ", hash: '2', sideChannel: {}});"):
@@ -1149,12 +1192,14 @@ def main():
                  for d in range(1, 21) for t in ("0147", "1747")]
         gone = dbstore.to_prune(snaps + ["notes.txt"], _d(2026, 3, 20))
         kept = sorted(set(snaps) - set(gone))
-        check(f"pruning keeps every run of the last two days, then one a day "
+        newest12 = sorted(snaps, reverse=True)[:dbstore.RECENT_KEEP]
+        check(f"pruning keeps the newest {dbstore.RECENT_KEEP}, then one a day "
               f"for {dbstore.KEEP_DAYS} days ({len(kept)} kept)",
-              all(n in kept for n in snaps if n[15:17] in ("19", "20"))
+              all(n in kept for n in newest12)
               and "faredrop-2026-03-10T1747Z-9.db.enc" in kept
               and "faredrop-2026-03-10T0147Z-9.db.enc" not in kept
-              and "faredrop-2026-03-05T1747Z-9.db.enc" not in kept)
+              and "faredrop-2026-03-05T1747Z-9.db.enc" not in kept
+              and len(kept) == dbstore.RECENT_KEEP + (dbstore.KEEP_DAYS + 1 - 6))
         check("and never touches anything that isn't a snapshot",
               "notes.txt" not in gone)
         check("it never prunes below the fallbacks, however old",

@@ -147,12 +147,11 @@ def still_a_deal(d, live):
 
 
 def due(conn, now):
-    """Recent unsent deals from ANY origin not re-checked lately.
+    """Recent unsent deals from ALERT_ORIGINS not re-checked lately.
 
-    Every deal is checked, not only those in ALERT_ORIGINS: a deal that is
-    shown anywhere (the digest, the review page) must have been confirmed
-    first. The alert cities go first, so the per-run cap spends itself on
-    what could reach the inbox.
+    Only the alert cities: from GitHub, Google answers about one request per
+    run (2026-10-12), so none is spent on a deal that could never be emailed.
+    Deals from other cities stay unconfirmed and are never sent.
     """
     cutoff = (now - timedelta(hours=config.VERIFY_RECHECK_HOURS)) \
         .isoformat(timespec="seconds")
@@ -162,7 +161,7 @@ def due(conn, now):
         "SELECT * FROM deal WHERE notified_at IS NULL AND detected_at >= ?"
         " AND (gf_checked_at IS NULL OR gf_checked_at < ?)"
         " ORDER BY discount_pct DESC", (since, cutoff)).fetchall()
-    return sorted(rows, key=lambda d: d["origin"] not in config.ALERT_ORIGINS)
+    return [d for d in rows if d["origin"] in config.ALERT_ORIGINS]
 
 
 def lookups_today(conn, today=None):
@@ -192,7 +191,7 @@ def run(conn, fetch=None, limit=None, pause=None, dry_run=False, now=None):
     limit = min(limit, max(0, config.GF_DAILY_LOOKUPS
                            - lookups_today(conn, (now or datetime.now(
                                timezone.utc)).date())))
-    pause = config.VERIFY_PAUSE_SECONDS if pause is None else pause
+    pause = config.GF_PAUSE_SECONDS if pause is None else pause
     now = now or datetime.now(timezone.utc)
     stamp = now.isoformat(timespec="seconds")
     out = {"due": 0, "checked": 0, "still": 0, "gone": 0, "skipped": 0,

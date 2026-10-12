@@ -209,6 +209,10 @@ MIGRATIONS = [
     # no fare_observation row: its observation_id is -gf_quote.id, which can
     # never collide with a real one.
     ("deal", "source", "TEXT"),
+    # A gf_quote candidate's confirming (filtered) search: NULL while still
+    # owed, 'deal' or 'not_bookable' once answered. A refusal leaves it owed,
+    # so the next run confirms it first instead of losing the find.
+    ("gf_quote", "confirm", "TEXT"),
 ]
 
 
