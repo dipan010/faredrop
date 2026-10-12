@@ -26,6 +26,7 @@ import db
 import detect
 import dbstore
 import digest
+import gfcollect
 import health
 
 SAMPLE = {
@@ -580,6 +581,118 @@ def main():
               r15["gone"] == 1 and r15["status"] == "ok"
               and "no itinerary within 1 stop(s)"
               in box15[0].get_body(preferencelist=("plain",)).get_content())
+
+        print("\nGoogle Flights as the deal source")
+        from datetime import date as _d2
+        today_g = NOW.date()
+
+        def gpage(price, usual=40000, low=33000, high=50000, airline="AI",
+                  insights=True, flights=True):
+            leg = [None, None, None, "BLR", "", "", "DXB"]
+            item = [["X", [airline], [leg]], [[None, price]]]
+            block = ([4, [None, price], [None, usual], [None, usual - price],
+                      [None, low], [None, high], 1, None, None, None,
+                      [[[1786473000000, usual], [1786559400000, price]]]]
+                     if insights else None)
+            return [None, None, [[item]] if flights else [[]], [[]], None, block]
+
+        check("Google's insights are read: price, usual, typical range, history",
+              gfcollect.insights(gpage(30000)) == {
+                  "price": 30000, "usual": 40000, "range_low": 33000,
+                  "range_high": 50000, "level_code": 4,
+                  "history": [[1786473000000, 40000], [1786559400000, 30000]]})
+        check("a page without them (e.g. filtered searches) gives None",
+              gfcollect.insights(gpage(30000, insights=False)) is None)
+        check("a candidate is at or below the bottom of the typical range",
+              gfcollect.is_candidate(gfcollect.insights(gpage(32000)))
+              and not gfcollect.is_candidate(gfcollect.insights(gpage(36000))))
+
+        cg = db.connect(str(Path(tmp) / "gf.db"))
+        dep = (today_g + timedelta(days=40)).isoformat()
+        for i, (dest, price, nights) in enumerate(
+                [("DXB", 20000, 5), ("DXB", 30000, 5), ("DXB", 30000, 6),
+                 ("SIN", 25000, 7), ("SIN", 26000, 30), ("LHR", 9000, 7)]):
+            ret = (today_g + timedelta(days=40 + nights)).isoformat()
+            collect._insert(cg, [{**rows[0], "origin": "BLR", "destination": dest,
+                                  "depart_date": dep, "return_date": ret,
+                                  "depart_month": dep[:7], "price": float(price),
+                                  "airline": f"A{i}", "fetched_at": at(0)}])
+        routes_g = [("BLR", "DXB"), ("BLR", "SIN")]
+        disc = gfcollect.discovery(cg, routes_g, today_g, 5)
+        check(f"discovery: the cheapest-looking trip per watched route ({len(disc)})",
+              len(disc) == 2 and disc[0][:3] == ("BLR", "DXB", dep)
+              and all(t[1] != "LHR" for t in disc))
+        check("and it ignores trips outside the allowed lengths",
+              all((_d2.fromisoformat(t[3]) - _d2.fromisoformat(t[2])).days <= 21
+                  for t in disc))
+        rng_g = random.Random(7)
+        exp = gfcollect.exploration(cg, routes_g, today_g, 2, rng_g)
+        check("exploration: random trips inside the horizon and night range",
+              len(exp) == 2 and all(
+                  7 <= (_d2.fromisoformat(t[2]) - today_g).days <= 180 and
+                  2 <= (_d2.fromisoformat(t[3]) - _d2.fromisoformat(t[2])).days <= 21
+                  for t in exp))
+
+        before_q = len(baseline.distinct_quotes(cg))
+        seen_calls = []
+
+        def fake(origin, dest, depart, ret, filtered):
+            seen_calls.append(filtered)
+            if dest == "DXB":                      # a real deal, bookable too
+                return gpage(30500 if filtered else 30000)
+            return gpage(31000 if not filtered else 39000)   # not bookable
+        rg = gfcollect.run(cg, fetch=fake, today=today_g, rng=rng_g, pause=0,
+                           routes=routes_g)
+        dxb_trips = cg.execute("SELECT count(*) FROM gf_quote"
+                               " WHERE destination='DXB'").fetchone()[0]
+        check(f"a run judges unfiltered, confirms filtered ({rg})",
+              rg["status"] == "ok" and rg["looked_up"] == 4
+              and seen_calls.count(True) == rg["candidates"] == 4
+              and rg["deals"] == dxb_trips == 2)
+        dg = cg.execute("SELECT * FROM deal").fetchall()
+        check("each confirmed deal is recorded as such, with Google's numbers",
+              len(dg) == 2 and all(
+                  d["destination"] == "DXB" and d["gf_status"] == "still"
+                  and d["price"] == 30500 and d["baseline_p50"] == 40000
+                  and d["source"] == "google_flights" for d in dg))
+        check("a candidate whose bookable fare doesn't clear the bar is no deal",
+              cg.execute("SELECT count(*) FROM deal WHERE destination='SIN'")
+                .fetchone()[0] == 0)
+        raw_n = cg.execute("SELECT count(*) FROM gf_raw").fetchone()[0]
+        check(f"every page is stored before it is read ({raw_n} raw rows)",
+              raw_n == len(seen_calls)
+              and cg.execute("SELECT count(*) FROM gf_raw WHERE body IS NULL")
+                .fetchone()[0] == 0)
+        check("and Google's data never reaches the Travelpayouts model",
+              len(baseline.distinct_quotes(cg)) == before_q)
+        config.VERIFY_REQUIRE_CONFIRMED = True
+        try:
+            check("a Google-found deal from an alert city is emailed",
+                  [d["destination"] for d in notify.pending(cg)] == ["DXB", "DXB"])
+        finally:
+            config.VERIFY_REQUIRE_CONFIRMED = False
+
+        used = verify.lookups_today(cg, today_g)
+        cap, config.GF_DAILY_LOOKUPS = config.GF_DAILY_LOOKUPS, used
+        try:
+            check("the shared daily budget stops further runs",
+                  gfcollect.run(cg, fetch=fake, today=today_g, pause=0,
+                                routes=routes_g)["status"]
+                  == "daily Google budget spent")
+        finally:
+            config.GF_DAILY_LOOKUPS = cap
+
+        cb = db.connect(str(Path(tmp) / "gfblock.db"))
+        calls_b = []
+
+        def blocked_g(*a):
+            calls_b.append(a)
+            raise RuntimeError("429")
+        rb = gfcollect.run(cb, fetch=blocked_g, today=today_g, rng=rng_g,
+                           pause=0, routes=routes_g)
+        check("the first failure ends the run, and is counted and kept",
+              len(calls_b) == 1 and rb["status"].startswith("stopped")
+              and cb.execute("SELECT ok FROM gf_raw").fetchall()[0][0] == 0)
 
         print("\nreading the Google Flights page")
         # Shaped like the page seen on 2026-10-02: leg = [.., .., .., from,

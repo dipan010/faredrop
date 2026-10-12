@@ -1,0 +1,9 @@
+{
+ "_about": "Destinations the Google Flights collector (gfcollect.py) watches from every ALERT_ORIGINS city. Default 25 chosen 2026-10-12: places Indian travellers commonly fly. City codes (LON, PAR, TYO, SEL) cover all of a city's airports. Edit freely.",
+ "destinations": ["DXB", "AUH", "SHJ", "DOH", "MCT", "BAH", "KWI",
+                  "SIN", "KUL", "BKK", "HKT", "DPS", "SGN",
+                  "CMB", "MLE", "KTM",
+                  "HKG", "TYO", "SEL",
+                  "LON", "PAR", "FRA", "AMS", "IST",
+                  "SYD"]
+}

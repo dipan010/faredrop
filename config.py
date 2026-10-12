@@ -47,6 +47,20 @@ TRIP_CLASSES = {0: "economy", 1: "business", 2: "first"}
 MAX_STOPS = 1              # Zomunk's bar: non-stop or one-stop only. Fares
                            # over it are never deals (detect.py skips them).
 
+# Google Flights as the deal source (gfcollect.py), chosen 2026-10-12 after
+# Travelpayouts' cheapest fares turned out to be largely Russian-market prices.
+# Destinations live in gf_routes.json; origins are ALERT_ORIGINS.
+GF_ROUTES_FILE = "gf_routes.json"
+GF_HORIZON_DAYS = (7, 180)        # departures this far ahead
+GF_NIGHTS = (2, 21)               # trip lengths considered, any in between
+GF_EXPLORE_SHARE = 0.3            # of lookups spent on random trips
+GF_RECHECK_DAYS = 3               # don't look the same trip up again sooner
+GF_RAW_KEEP_DAYS = 14
+# A Google-sourced deal: the fare is at or below the bottom of Google's own
+# typical range for that trip, and saves MIN_ABS_SAVING against its usual
+# price. PLACEHOLDER, like DEAL_RATIO: tune on review-page verdicts.
+GF_BELOW_RANGE_LOW = 1.0          # price <= range_low * this
+
 # Departure cities whose deals are emailed. Collection covers every origin in
 # routes.json; deals elsewhere are still detected and shown by digest.py, but
 # not sent. BLR plus nearby, chosen 2026-10-06.
@@ -183,6 +197,11 @@ DIGEST_WINDOW_DAYS = 7
 # Lookups per daily run, and the pause between them. Each pending deal is a
 # lookup, so this caps the load on Google, not the number of deals.
 VERIFY_MAX_PER_RUN = 10
+# One budget for every Google Flights request (the re-check and gfcollect.py
+# share an IP's reputation). Per UTC day, counted from gf_raw. Start small,
+# raise only after days without a block.
+GF_DAILY_LOOKUPS = 40
+GF_PER_RUN = 15
 VERIFY_PAUSE_SECONDS = 5
 # A deal already re-checked within this many hours is not looked up again.
 VERIFY_RECHECK_HOURS = 20

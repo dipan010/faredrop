@@ -67,6 +67,7 @@ python3 notify.py                 # email anything you haven't been told about
 | `verify.py` | Re-checks pending deals on Google Flights before they're emailed. Optional. |
 | `notify.py` | Emails deals you haven't been told about. Delivery, once. |
 | `backup.py` | Dated, WAL-safe DB snapshot after each collect, locally and in iCloud Drive. |
+| `gfcollect.py` | Google Flights deals, judged by Google's own typical range. The deal source. |
 | `routes.py` | Adds the routes in `routes.json` to the database; add-only. |
 | `dbstore.py` | Encrypted history snapshots on the `data` release, for the Actions collector. |
 | `watchdog.py` | From the laptop: alerts if the Actions collector stops producing snapshots. |
@@ -319,6 +320,37 @@ actually has fares for; the GitHub workflow adds any missing ones each run
 are mostly Russian and CIS. So Delhi, Goa and Mumbai are rich, Moscow and
 Colombo are the deepest destinations, and Europe and North America are thin
 or empty. More destinations don't add data that isn't in the cache.
+
+## Google Flights as the deal source
+
+Since 2026-10-12 deals come from Google Flights (`gfcollect.py`). The first
+Travelpayouts deals were Russian-market seller prices Google put 30–115%
+higher. A 12-fare comparison found Travelpayouts' ordinary prices within
+about 10% of Google, but its cheapest outliers unreliable, and those are
+exactly what deal detection picks.
+
+- **Watched:** `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI) × the 25
+  destinations in `gf_routes.json`. Any trip of 2–21 nights departing 7–180
+  days out.
+- **Which trips get looked up:** most come from *discovery*, recent
+  Travelpayouts fares that look cheap for their route. The rest
+  *explore*: random dates and lengths, on the routes Google has seen least.
+  `gf_quote.reason` records which, to compare them later.
+- **Judging:** an unfiltered Google search carries Google's own price
+  insights for that exact trip: its usual price, its typical range and about
+  62 days of history. A fare at or below the bottom of that range, saving
+  `MIN_ABS_SAVING` against the usual price, is a candidate. A second search
+  with the quality bar on (`MAX_STOPS`, no self-transfers) must find a
+  bookable fare that clears the same bar. Then it is a deal, recorded as
+  confirmed and emailed. Filtered searches carry no insights, which is why
+  there are two.
+- **Storage:** Google data has its own tables (`gf_raw`, `gf_quote`) and
+  never enters the Travelpayouts model. Each page's data is stored
+  compressed (~9 KB) before it is read. Bodies are kept 14 days; parsed
+  rows are kept for good.
+- **Budget:** `GF_DAILY_LOOKUPS` (40) Google requests a day, shared with the
+  re-check, at most `GF_PER_RUN` (15) per run. The first failure ends a run.
+  It is scraping, against Google's terms, so it is kept small.
 
 ## Running on GitHub Actions
 

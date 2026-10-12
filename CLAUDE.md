@@ -35,4 +35,8 @@ python3 simulate.py             # synthetic history, for exercising the model on
 - Writing repository secrets is the user's job (Claude Code's rules block it).
 - Routes for the GitHub collector live in `routes.json` (added by `routes.py`, add-only).
   Never pull GitHub's DB into `data/faredrop.db`; to inspect it, decrypt into a scratch path.
+- Deals come from Google Flights (`gfcollect.py`); Travelpayouts is for discovery and
+  baselines only, and its own deals are emailed only once Google confirms them.
+  Google data stays in `gf_raw`/`gf_quote`, never in `fare_observation`. Keep within
+  `GF_DAILY_LOOKUPS`: it is scraping, so raise it only after days without a block.
 - When a phase's exit criteria are met, tick it in `STATUS.md`.

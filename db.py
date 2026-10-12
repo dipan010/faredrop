@@ -58,6 +58,49 @@ CREATE INDEX IF NOT EXISTS idx_obs_routemonth
 CREATE INDEX IF NOT EXISTS idx_obs_fetched
     ON fare_observation (fetched_at);
 
+-- Google Flights, kept apart from the Travelpayouts tables on purpose: none
+-- of this may leak into baseline.distinct_quotes or detect.run, which read
+-- fare_observation. gf_raw holds each fetched page's data (zlib JSON),
+-- written BEFORE parsing so a parser fix can replay it; bodies older than
+-- GF_RAW_KEEP_DAYS are dropped, the parsed gf_quote rows are kept.
+CREATE TABLE IF NOT EXISTS gf_raw (
+    id          INTEGER PRIMARY KEY,
+    origin      TEXT NOT NULL,
+    destination TEXT NOT NULL,
+    depart_date TEXT NOT NULL,
+    return_date TEXT NOT NULL,
+    filtered    INTEGER NOT NULL,   -- 1 = no self-transfers, MAX_STOPS
+    purpose     TEXT NOT NULL,      -- 'judge' | 'confirm' | 'verify'
+    fetched_at  TEXT NOT NULL,
+    ok          INTEGER NOT NULL,   -- 0 = the fetch or page read failed
+    body        BLOB                -- zlib(JSON of the page data)
+);
+CREATE INDEX IF NOT EXISTS idx_gf_raw_day ON gf_raw (fetched_at);
+
+-- One unfiltered lookup, read: Google's own price insights for this exact
+-- trip (only unfiltered searches carry them) and the cheapest itinerary.
+CREATE TABLE IF NOT EXISTS gf_quote (
+    id          INTEGER PRIMARY KEY,
+    raw_id      INTEGER NOT NULL REFERENCES gf_raw(id),
+    origin      TEXT NOT NULL,
+    destination TEXT NOT NULL,
+    depart_date TEXT NOT NULL,
+    return_date TEXT NOT NULL,
+    nights      INTEGER NOT NULL,
+    fetched_at  TEXT NOT NULL,
+    reason      TEXT NOT NULL,      -- 'discovery' | 'exploration'
+    price       REAL,               -- cheapest now
+    usual       REAL,               -- Google's usual price for this trip
+    range_low   REAL,               -- Google's typical range
+    range_high  REAL,
+    level_code  INTEGER,            -- 3/4 typical, 5 high; low not yet seen
+    history     TEXT,               -- JSON [[epoch_ms, price], ...], ~62 days
+    airline     TEXT,
+    via         TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_gf_quote_trip
+    ON gf_quote (origin, destination, depart_date, return_date);
+
 -- Days health.py has already reported, so each gap is announced once.
 CREATE TABLE IF NOT EXISTS alert (
     day     TEXT NOT NULL,
@@ -161,6 +204,11 @@ MIGRATIONS = [
     ("deal", "gf_checked_at", "TEXT"),
     ("deal", "gf_airline", "TEXT"),
     ("deal", "gf_via", "TEXT"),
+    # 'travelpayouts' (detect.py, confirmed later by verify.py) or
+    # 'google_flights' (gfcollect.py, confirmed when found). A Google deal has
+    # no fare_observation row: its observation_id is -gf_quote.id, which can
+    # never collide with a real one.
+    ("deal", "source", "TEXT"),
 ]
 
 

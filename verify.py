@@ -149,10 +149,33 @@ def due(conn, now):
     return sorted(rows, key=lambda d: d["origin"] not in config.ALERT_ORIGINS)
 
 
+def lookups_today(conn, today=None):
+    """Google Flights requests made this UTC day, by anything (gf_raw)."""
+    today = (today or datetime.now(timezone.utc).date()).isoformat()
+    return conn.execute("SELECT count(*) FROM gf_raw"
+                        " WHERE substr(fetched_at, 1, 10) = ?",
+                        (today,)).fetchone()[0]
+
+
+def note_lookup(conn, d, ok, stamp):
+    """Count a re-check against the shared daily Google budget."""
+    conn.execute(
+        "INSERT INTO gf_raw (origin, destination, depart_date, return_date,"
+        " filtered, purpose, fetched_at, ok, body)"
+        " VALUES (?,?,?,?,1,'verify',?,?,NULL)",
+        (d["origin"], d["destination"], d["depart_date"], d["return_date"],
+         stamp, int(ok)))
+    conn.commit()
+
+
 def run(conn, fetch=None, limit=None, pause=None, dry_run=False, now=None):
     """Re-check due deals. `fetch` is injectable for tests."""
     fetch = fetch or google_flights
     limit = config.VERIFY_MAX_PER_RUN if limit is None else limit
+    # The re-check and gfcollect.py share one daily budget of Google requests.
+    limit = min(limit, max(0, config.GF_DAILY_LOOKUPS
+                           - lookups_today(conn, (now or datetime.now(
+                               timezone.utc)).date())))
     pause = config.VERIFY_PAUSE_SECONDS if pause is None else pause
     now = now or datetime.now(timezone.utc)
     stamp = now.isoformat(timespec="seconds")
@@ -195,9 +218,13 @@ def run(conn, fetch=None, limit=None, pause=None, dry_run=False, now=None):
         except Exception as exc:            # noqa: BLE001 - stop, don't retry
             # Likely a block or a changed page. The rest stay unchecked and
             # go out marked so; hammering on would only make a block stick.
+            if not dry_run:
+                note_lookup(conn, d, False, stamp)
             record(d, "error")
             out["status"] = f"stopped: {exc}"
             break
+        if not dry_run:
+            note_lookup(conn, d, True, stamp)
         out["checked"] += 1
         if live is None:                    # nothing within the quality bar
             record(d, "gone", {"price": None, "via": None})
