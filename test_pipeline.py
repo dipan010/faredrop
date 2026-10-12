@@ -695,6 +695,11 @@ def main():
               and cb.execute("SELECT ok FROM gf_raw").fetchall()[0][0] == 0)
 
         print("\nreading the Google Flights page")
+        for tail in (", sideChannel: {}});", "});", ", hash: '2', sideChannel: {}});"):
+            html = ("<script class=\"ds:1\" nonce=\"x\">AF_initDataCallback({key: 'ds:1',"
+                    " hash: '1', data:[1,[2,3],{\"a\":\"b, c\"}]" + tail + "</script>")
+            check(f"the page data is read whatever follows it ({tail[:14]!r})",
+                  verify.page_data(html) == [1, [2, 3], {"a": "b, c"}])
         # Shaped like the page seen on 2026-10-02: leg = [.., .., .., from,
         # name, name, to, ...]; item = [[type, airlines, legs], [[_, price]]].
         def leg(a, b):

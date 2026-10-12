@@ -78,7 +78,13 @@ def page_data(html):
     if start < 0:
         raise RuntimeError("results data not found on page")
     script = html[start:html.index("</script>", start)]
-    return json.loads(script.split("data:", 1)[1].rsplit(",", 1)[0])
+    # Decode exactly one JSON value after "data:" and ignore what follows.
+    # Cutting at the last comma (as fast-flights does) broke on 2026-10-12:
+    # the page served to GitHub's runners has more fields after the data
+    # ("Extra data: line 1 column 236"), while the laptop's did not.
+    body = script.split("data:", 1)[1].lstrip()
+    value, _ = json.JSONDecoder().raw_decode(body)
+    return value
 
 
 def cheapest(payload):
