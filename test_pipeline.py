@@ -700,6 +700,16 @@ def main():
                     " hash: '1', data:[1,[2,3],{\"a\":\"b, c\"}]" + tail + "</script>")
             check(f"the page data is read whatever follows it ({tail[:14]!r})",
                   verify.page_data(html) == [1, [2, 3], {"a": "b, c"}])
+        refused = ("<script class=\"ds:1\">AF_initDataCallback({key: 'ds:1', data:"
+                   "[null,null,[[\"type.googleapis.com/travel.frontend.flights."
+                   "ErrorResponse\",[[null,[[1,2,3]],0,\"x\",\"y\"],0]]]], sideChannel: {}});</script>")
+        try:
+            verify.page_data(refused)
+            got = None
+        except verify.Refused as e:
+            got = str(e)
+        check("Google's refusal page is named as a refusal",
+              got and "refused" in got)
         # Shaped like the page seen on 2026-10-02: leg = [.., .., .., from,
         # name, name, to, ...]; item = [[type, airlines, legs], [[_, price]]].
         def leg(a, b):

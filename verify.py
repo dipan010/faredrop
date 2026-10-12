@@ -84,7 +84,17 @@ def page_data(html):
     # ("Extra data: line 1 column 236"), while the laptop's did not.
     body = script.split("data:", 1)[1].lstrip()
     value, _ = json.JSONDecoder().raw_decode(body)
+    # A refusal arrives as a well-formed page whose data is only an error
+    # (travel.frontend.flights.ErrorResponse). Seen from GitHub's runners on
+    # 2026-10-12, for some runner addresses and not others; never from the
+    # laptop. Say so, rather than "no priced results".
+    if len(value) < 4 and "ErrorResponse" in json.dumps(value)[:400]:
+        raise Refused("Google Flights refused the search (ErrorResponse)")
     return value
+
+
+class Refused(RuntimeError):
+    """Google answered with an error page instead of results."""
 
 
 def cheapest(payload):
