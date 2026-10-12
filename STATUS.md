@@ -76,7 +76,8 @@ arrive (from ~2026-10-12). Three stages, with a decision point after the first t
 
 ### Stage 1: prove the deals are good (2026-10-12 → early Nov, ~3–4 weeks)
 - Status 2026-10-12: 92 route-months ready (DEL 41, GOI 26, BOM 15, BLR 4, TRV 4, CCU 1, COK 1); yield 3.0 new fares per call, against 0.18 before the calendar. First real deals were detected 2026-10-12 00:09Z, all from DEL so not emailed: DEL→KTM ₹18,255 vs ~₹33k (AI non-stop, ×2 dates) and DEL→MOW ₹29,933 vs ~₹53.6k (1 stop). Only GOI, BLR and COK of `ALERT_ORIGINS` have baselines yet; MAA and HYD have none.
-- [ ] A verdict on every deal: a small private review page with "good / not for me / wrong" per deal. The verdicts are the evidence for tuning.
+- [x] Review page live 2026-10-12: https://claude.ai/artifact/FKn5RLNgx8sxmbBpLoYZc4 (private to the user). Deals sit in its `deals` collection and the user's verdicts in `verdicts/<deal id>` (`verdict`: good / not_for_me / wrong, optional `note`). It shows every city, with `ALERT_ORIGINS` highlighted. Seeded with the 3 DEL deals; the old 2-stop GOI→SVX is left out because it fails current rules.
+- [ ] Refreshing it is manual for now: in a session, decrypt GitHub's newest snapshot into a scratch path, build rows for deals not yet on the page, and batch-write them to `deals` (never overwrite `verdicts`). Automate it only if Stage 1 shows the page earns its keep.
 - [ ] Tune on real data only: `DEAL_RATIO` / `MIN_ABS_SAVING` / `MISTAKE_Z`; per-day (calendar) vs per-month (/cheap) minima modelled apart if pooling skews; `VERIFY_SUPPRESS_GONE` on or off.
 - [ ] Track deals/week for `ALERT_ORIGINS`, the share worth booking, and the Google Flights confirmation rate.
 - **Exit:** a steady flow of deals the user would genuinely consider. If too thin, Stage 2 matters more than any app.
