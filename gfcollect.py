@@ -17,10 +17,14 @@ Each run, within a small daily budget of Google requests:
    Google's price insights: its usual price for that exact trip, its typical
    range, and ~62 days of price history. The page data is stored (gf_raw)
    before it is read, then parsed into gf_quote.
-3. **Confirm.** If the fare is at or below the bottom of Google's typical
-   range and saves MIN_ABS_SAVING against its usual price, a second lookup
-   with the quality bar on (MAX_STOPS, no self-transfers) must still find a
-   fare that clears both. Only then is it a deal, recorded as confirmed.
+3. **Confirm, later.** A fare at or below the bottom of Google's typical
+   range, saving MIN_ABS_SAVING against its usual price, is a candidate. A
+   later run (another time, another runner address) searches it with the
+   quality bar on (MAX_STOPS, no self-transfers): the fare must reproduce
+   within GF_REPRODUCE_WITHIN, still clear the bar, and fit Travelpayouts'
+   typical price for the route where it has one. Only then is it a deal.
+   Google sometimes serves an incomplete page with insights to match; one
+   such page made the first, wrong, deal email (GOI->CMB, 2026-10-12).
 
 The first failed fetch or unreadable page ends the run: it is likelier a
 block than bad luck, and pressing on makes a block stick.
@@ -217,6 +221,30 @@ def _record_deal(conn, trip, quote_id, q, best, now):
     return True
 
 
+def tp_typical(conn, origin, destination, depart_date, today):
+    """Travelpayouts' median round-trip price for the route and departure
+    month over the last 14 days, or None with too few fares to say."""
+    since = (today - timedelta(days=14)).isoformat()
+    prices = sorted(r[0] for r in conn.execute(
+        "SELECT price FROM fare_observation WHERE origin = ? AND destination = ?"
+        " AND depart_month = ? AND return_date IS NOT NULL"
+        " AND substr(fetched_at, 1, 10) >= ?",
+        (origin, destination, depart_date[:7], since)))
+    if len(prices) < config.GF_TP_MIN_FARES:
+        return None
+    return prices[len(prices) // 2]
+
+
+def plausible(conn, trip, q, price, today):
+    """Does Travelpayouts' sense of the market back Google's view? True when
+    it has no view (thin routes), so it never blocks what it can't judge."""
+    tp = tp_typical(conn, trip[0], trip[1], trip[2], today)
+    if tp is None:
+        return True
+    lo, hi = config.GF_TP_USUAL_BAND
+    return lo * tp <= q["usual"] <= hi * tp and price < tp
+
+
 def owed(conn, today):
     """Candidates from the last two days whose confirming search never got
     an answer (refused, or the run's budget ran out), still in the future.
@@ -290,10 +318,16 @@ def run(conn, fetch=None, today=None, rng=None, pause=None, dry_run=False,
                           now), payload, now
 
     def confirm(trip, quote_id, q):
-        """The filtered search for a candidate; records the answer."""
+        """The filtered search for a candidate, in a later run than the one
+        that judged it; records the answer. The fare must reproduce (an
+        incomplete page doesn't, twice) and fit Travelpayouts' market."""
         _, filtered_payload, now = lookup(trip, True, "confirm")
         best = verify.cheapest(filtered_payload)
-        ok = bool(best and is_candidate({**q, "price": best["price"]}))
+        ok = bool(best
+                  and is_candidate({**q, "price": best["price"]})
+                  and abs(best["price"] - q["price"]) / q["price"]
+                  <= config.GF_REPRODUCE_WITHIN
+                  and plausible(conn, trip, q, best["price"], today))
         conn.execute("UPDATE gf_quote SET confirm = ? WHERE id = ?",
                      ("deal" if ok else "not_bookable", quote_id))
         conn.commit()
@@ -335,14 +369,11 @@ def run(conn, fetch=None, today=None, rng=None, pause=None, dry_run=False,
             stats["with_insights"] += 1
             if not is_candidate(q):
                 continue
-            if used >= left:              # owed: next run confirms it first
-                stats["candidates"] += 1
-                continue
+            # Owed, never confirmed in this run: the next run (another time,
+            # another runner address) confirms it first. Judging and
+            # confirming in one moment let one incomplete page agree with
+            # itself (GOI->CMB, 2026-10-12).
             stats["candidates"] += 1
-            # Judged unfiltered (that is where the insights are); booked
-            # filtered. The bookable fare must clear the same bar. A refusal
-            # here leaves it owed, to be confirmed first next run.
-            confirm(trip, cur.lastrowid, q)
     except verify.Unavailable as exc:
         stats["status"] = f"unavailable: {exc}"
     except Exception as exc:              # noqa: BLE001 - see module doc

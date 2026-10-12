@@ -339,11 +339,17 @@ exactly what deal detection picks.
 - **Judging:** an unfiltered Google search carries Google's own price
   insights for that exact trip: its usual price, its typical range and about
   62 days of history. A fare at or below the bottom of that range, saving
-  `MIN_ABS_SAVING` against the usual price, is a candidate. A second search
-  with the quality bar on (`MAX_STOPS`, no self-transfers) must find a
-  bookable fare that clears the same bar. Then it is a deal, recorded as
-  confirmed and emailed. Filtered searches carry no insights, which is why
-  there are two.
+  `MIN_ABS_SAVING` against the usual price, is a candidate. A **later** run
+  searches it with the quality bar on (`MAX_STOPS`, no self-transfers). The
+  bookable fare must reproduce within 5% of the judged price, still clear
+  the bar, and, where Travelpayouts has a typical price for the route-month,
+  fit it: Google's usual within 0.6–1.6× of it, and the deal below it. Then
+  it is a deal, recorded as confirmed and emailed. Filtered searches carry
+  no insights, which is why there are two searches. They run at different
+  times because Google sometimes serves an incomplete page whose insights
+  agree with its own missing flights. That made the first deal email wrong:
+  GOI→CMB ₹46,552 "below ₹48k–97k", when the full page an hour later had
+  ₹22,410.
 - **Storage:** Google data has its own tables (`gf_raw`, `gf_quote`) and
   never enters the Travelpayouts model. Each page's data is stored
   compressed (~9 KB) before it is read. Bodies are kept 14 days; parsed

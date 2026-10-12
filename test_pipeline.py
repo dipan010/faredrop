@@ -643,12 +643,17 @@ def main():
             return gpage(31000 if not filtered else 39000)   # not bookable
         rg = gfcollect.run(cg, fetch=fake, today=today_g, rng=rng_g, pause=0,
                            routes=routes_g)
-        dxb_trips = cg.execute("SELECT count(*) FROM gf_quote"
-                               " WHERE destination='DXB'").fetchone()[0]
-        check(f"a run judges unfiltered, confirms filtered ({rg})",
+        check(f"a run only judges: its candidates are owed, not confirmed ({rg})",
               rg["status"] == "ok" and rg["looked_up"] == 4
-              and seen_calls.count(True) == rg["candidates"] == 4
-              and rg["deals"] == dxb_trips == 2)
+              and rg["candidates"] == 4 and True not in seen_calls
+              and rg["deals"] == 0 and len(gfcollect.owed(cg, today_g)) == 4)
+        rg2 = gfcollect.run(cg, fetch=fake, today=today_g, rng=rng_g, pause=0,
+                            routes=routes_g)
+        dxb_trips = cg.execute("SELECT count(*) FROM gf_quote WHERE"
+                               " destination='DXB' AND confirm IS NOT NULL").fetchone()[0]
+        check(f"the next run confirms them first ({rg2['owed_confirmed']} owed confirmed)",
+              rg2["owed_confirmed"] == 4 and seen_calls.count(True) == 4
+              and rg2["deals"] == dxb_trips == 2)
         dg = cg.execute("SELECT * FROM deal").fetchall()
         check("each confirmed deal is recorded as such, with Google's numbers",
               len(dg) == 2 and all(
@@ -658,6 +663,36 @@ def main():
         check("a candidate whose bookable fare doesn't clear the bar is no deal",
               cg.execute("SELECT count(*) FROM deal WHERE destination='SIN'")
                 .fetchone()[0] == 0)
+
+        # GOI->CMB, 2026-10-12: one incomplete page judged ₹46,552 "below a
+        # typical ₹48k-97k"; the full page an hour later had ₹22,410.
+        cc = db.connect(str(Path(tmp) / "goicmb.db"))
+        gfcollect.run(cc, fetch=lambda *a: gpage(46552, usual=67487, low=48000,
+                                                   high=97000),
+                      today=today_g, rng=random.Random(9), pause=0,
+                      routes=[("GOI", "CMB")])
+        rc = gfcollect.run(cc, fetch=lambda *a: gpage(22410, insights=False),
+                           today=today_g, rng=random.Random(9), pause=0,
+                           routes=[("GOI", "CMB")])
+        check("a price that doesn't reproduce in a later run is no deal",
+              rc["owed_confirmed"] >= 1 and rc["deals"] == 0
+              and cc.execute("SELECT count(*) FROM gf_quote WHERE"
+                             " confirm='not_bookable'").fetchone()[0] >= 1)
+        ct = db.connect(str(Path(tmp) / "tpcheck.db"))
+        dep_t = (today_g + timedelta(days=40)).isoformat()
+        collect._insert(ct, [{**rows[0], "origin": "GOI", "destination": "CMB",
+                              "depart_date": dep_t, "depart_month": dep_t[:7],
+                              "return_date": (today_g + timedelta(days=46)).isoformat(),
+                              "price": float(30000 + 500 * i), "airline": f"T{i}",
+                              "fetched_at": at(1)} for i in range(6)])
+        q_bad = {"price": 46552, "usual": 67487}
+        trip_t = ("GOI", "CMB", dep_t, (today_g + timedelta(days=46)).isoformat())
+        check("Travelpayouts' typical price vetoes a 'usual' it contradicts",
+              not gfcollect.plausible(ct, trip_t, q_bad, 46552, today_g)
+              and gfcollect.plausible(ct, trip_t, {"price": 25000, "usual": 34000},
+                                      25000, today_g)
+              and gfcollect.plausible(ct, ("GOI", "LON", dep_t, dep_t), q_bad,
+                                      46552, today_g))
         raw_n = cg.execute("SELECT count(*) FROM gf_raw").fetchone()[0]
         check(f"every page is stored before it is read ({raw_n} raw rows)",
               raw_n == len(seen_calls)
@@ -703,14 +738,17 @@ def main():
             if filtered:
                 raise verify.Refused("Google Flights refused the search")
             return gpage(30000)
+        gfcollect.run(co, fetch=judge_ok_confirm_refused, today=today_g,
+                      rng=random.Random(3), pause=0, refused_wait=0,
+                      routes=[("BLR", "DXB")])           # judges: owed
         r1 = gfcollect.run(co, fetch=judge_ok_confirm_refused, today=today_g,
                            rng=random.Random(3), pause=0, refused_wait=0,
-                           routes=[("BLR", "DXB")])
+                           routes=[("BLR", "DXB")])      # confirm refused
         check(f"a refused confirmation is retried once, then the run stops ({r1['status'][:30]})",
               r1["retries"] == 1 and r1["status"].startswith("stopped")
               and r1["deals"] == 0)
         check("and the find is kept as owed, not dropped",
-              len(gfcollect.owed(co, today_g)) == 1)
+              len(gfcollect.owed(co, today_g)) >= 1)
         calls_o = []
 
         def all_ok(origin, dest, depart, ret, filtered):
@@ -720,9 +758,10 @@ def main():
                            rng=random.Random(3), pause=0, refused_wait=0,
                            routes=[("BLR", "DXB")])
         check(f"the next run confirms it first ({r2['owed_confirmed']} owed confirmed)",
-              calls_o[0] is True and r2["owed_confirmed"] == 1
+              calls_o[0] is True and r2["owed_confirmed"] >= 1
               and co.execute("SELECT count(*) FROM deal").fetchone()[0] >= 1
-              and gfcollect.owed(co, today_g) == [])
+              and co.execute("SELECT confirm FROM gf_quote ORDER BY id"
+                             " LIMIT 1").fetchone()[0] == "deal")
         cr = db.connect(str(Path(tmp) / "refused_once.db"))
         flip = {"refused": False}
 

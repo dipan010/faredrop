@@ -60,6 +60,18 @@ GF_RAW_KEEP_DAYS = 14
 # typical range for that trip, and saves MIN_ABS_SAVING against its usual
 # price. PLACEHOLDER, like DEAL_RATIO: tune on review-page verdicts.
 GF_BELOW_RANGE_LOW = 1.0          # price <= range_low * this
+# Google sometimes serves an incomplete version of a search: some flights
+# missing, price insights computed on what is left. On 2026-10-12 GOI->CMB
+# showed ₹46,552 "below a typical ₹48,000-97,000" while the full page, an hour
+# later, had ₹22,410; that deal was emailed and was wrong. So a candidate is
+# confirmed only in a LATER run, and the bookable fare must reproduce within
+# this share of the judged price...
+GF_REPRODUCE_WITHIN = 0.05
+# ...and, where Travelpayouts has a typical price for the route-month (its
+# ordinary prices run within ~10% of Google's), Google's usual price must lie
+# within this band of it, and the deal must sit below it.
+GF_TP_USUAL_BAND = (0.6, 1.6)
+GF_TP_MIN_FARES = 5
 
 # Departure cities whose deals are emailed. Collection covers every origin in
 # routes.json; deals elsewhere are still detected and shown by digest.py, but
