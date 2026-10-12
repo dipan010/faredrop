@@ -48,7 +48,7 @@ Last reviewed: 2026-10-12
 - [ ] Watch the first deal emails for false positives; thresholds are still placeholders until tuned.
 - [x] Google Flights re-check (`verify.py`, venv in `.venv`), built 2026-10-02. Each alert shows the live price.
 - [x] Zomunk quality bar in the re-check (2026-10-02): self-transfers excluded; airline and connecting airports shown on each alert. Checked bags can't be verified with the free scraper; transit-visa rules aren't encoded (the connections are shown instead).
-- [ ] Compare re-check prices against real deals, then decide whether to turn on `VERIFY_SUPPRESS_GONE`.
+- [x] ~~Decide on `VERIFY_SUPPRESS_GONE`~~: replaced by `VERIFY_REQUIRE_CONFIRMED = True` (2026-10-12), after the first real deals disagreed with Google Flights.
 - **Exit:** a real deal alert you'd act on.
 
 ### Phase 3 — Backup and robustness
@@ -73,6 +73,13 @@ Last reviewed: 2026-10-12
 
 No app yet. The value is in deal quality, which is unproven until real deals
 arrive (from ~2026-10-12). Three stages, with a decision point after the first two.
+
+### Finding 2026-10-12: Travelpayouts' cheapest fares are often Russian-market prices
+- All 3 first deals were fares sold by Russian sellers (Aviakassa ×2, Ural Airlines). The same trips on Google Flights cost 30–115% more, and a mainstream seller on the same feed (Trip.com, ₹32,134 for the AI flight) matched Google. In a 12-route sample, about half the fares with a named seller came from Russian-market sites (Kupi.com, Авиасейлс, Aviakassa, City.Travel, Biletix, T-Bank), and 43% named no seller. `/cheap` and the calendar don't name the seller, so these could not be filtered, and they also pull "typical" down.
+- Should have been checked before Oct 6: the Russian skew was visible then but was treated as a coverage issue, not a question of whether a price is bookable.
+- [x] Safe fixes (2026-10-12): every deal, from any city, is re-checked on Google Flights (alert cities first, 10 per run), and only confirmed deals (`gf_status = 'still'`) are emailed (`VERIFY_REQUIRE_CONFIRMED`). The review page marks the 3 deals "Not confirmed by Google Flights".
+- [ ] Reliability study: compare a sample of Travelpayouts fares with Google Flights for the same itineraries, by seller type.
+- [ ] Option A (chosen): Google Flights as the main source for `ALERT_ORIGINS` × curated destinations; Travelpayouts for discovery only.
 
 ### Stage 1: prove the deals are good (2026-10-12 → early Nov, ~3–4 weeks)
 - Status 2026-10-12: 92 route-months ready (DEL 41, GOI 26, BOM 15, BLR 4, TRV 4, CCU 1, COK 1); yield 3.0 new fares per call, against 0.18 before the calendar. First real deals were detected 2026-10-12 00:09Z, all from DEL so not emailed: DEL→KTM ₹18,255 vs ~₹33k (AI non-stop, ×2 dates) and DEL→MOW ₹29,933 vs ~₹53.6k (1 stop). Only GOI, BLR and COK of `ALERT_ORIGINS` have baselines yet; MAA and HYD have none.

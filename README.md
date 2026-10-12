@@ -94,6 +94,12 @@ cheapest date this month". That is exactly what fired on 2026-10-06, the
 first day of the wider collection. Every recompute starts clean, so a cell
 that stops qualifying loses its baseline.
 
+**Google Flights must confirm it.** Travelpayouts often reports a fare from
+a Russian-market seller that an Indian traveller can't buy. The first three
+deals (2026-10-12) were exactly that, 30–115% under Google Flights. So every
+deal is looked up on Google Flights for the same dates, and only deals whose
+live price still clears the gates are emailed.
+
 **The quality bar filters.** A fare with more than `MAX_STOPS` (1) stops is
 never a deal, however cheap; it is not merely flagged. Deals are emailed
 only for departure cities in `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI).

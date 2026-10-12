@@ -186,11 +186,13 @@ VERIFY_MAX_PER_RUN = 10
 VERIFY_PAUSE_SECONDS = 5
 # A deal already re-checked within this many hours is not looked up again.
 VERIFY_RECHECK_HOURS = 20
-# Hold back deals the re-check says are gone. OFF until real deals show how
-# often Google Flights and Travelpayouts disagree: the scraper returns
-# Google's short "best" list, which may omit the cheapest fare, and an alert
-# wrongly dropped is worse than one sent with a warning on it.
-VERIFY_SUPPRESS_GONE = False
+# Email a deal only once Google Flights has confirmed it: the live price for
+# the same itinerary still clears the deal gates. Unchecked or "gone" deals
+# are never sent. On 2026-10-12 the first three deals (DEL->KTM x2, DEL->MOW)
+# were Russian-market seller prices (Aviakassa, Ural Airlines) that Google
+# Flights put 30-115% higher; Travelpayouts' cheapest fare is often not one
+# an Indian traveller can buy, so its price alone is not evidence of a deal.
+VERIFY_REQUIRE_CONFIRMED = True
 
 # SMTP, from the environment only -- never checked in. Put them in
 # ~/.faredrop.env (chmod 600), which daily.sh sources; launchd inherits no

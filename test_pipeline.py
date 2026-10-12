@@ -91,6 +91,10 @@ def at(days_ago, hour=6):
 
 
 def main():
+    # Delivery mechanics (retry, stamping, formatting, backlog) are tested on
+    # unverified deals, so the confirmed-only rule is off here and tested on
+    # its own in "the live re-check".
+    config.VERIFY_REQUIRE_CONFIRMED = False
     rows = collect._parse(SAMPLE, "BLR", "DXB", at(0))
     print("parser")
     check("drops the priceless offer", len(rows) == 2)
@@ -496,14 +500,22 @@ def main():
         check("a deal checked recently is not looked up again",
               again9["checked"] == 0 and again9["status"] == "ok")
 
+        config.VERIFY_REQUIRE_CONFIRMED = True
+        try:
+            sendable = [d["price"] for d in notify.pending(c9)]
+        finally:
+            config.VERIFY_REQUIRE_CONFIRMED = False
+        check("only a deal Google Flights confirmed is emailed; gone and "
+              "unchecked ones are held back",
+              sendable == [12000.0])
         box9 = []
         notify.run(c9, sender=box9.append)
         body9 = box9[0].get_body(preferencelist=("plain",)).get_content()
         check("the alert carries the live price",
               "Google Flights now ₹13,000 -- still a deal" in body9)
-        check("a gone deal is still sent while suppression is off, flagged",
+        check("with the rule off, a gone deal is sent flagged",
               "may already be gone" in body9 and "12,500" in body9)
-        check("an unchecked one says so",
+        check("and an unchecked one says so",
               "not re-checked on Google Flights" in body9)
 
         c9 = db.connect(str(Path(tmp) / "verify2.db"))
@@ -531,6 +543,19 @@ def main():
         r12 = verify.run(c9, fetch=missing, pause=0)
         check("no scraper installed is a clean skip",
               r12["status"].startswith("unavailable") and r12["checked"] == 0)
+
+        c16 = db.connect(str(Path(tmp) / "allorigins.db"))
+        for i, origin in enumerate(("DEL", "GOI")):
+            c16.execute(
+                "INSERT INTO deal (observation_id, origin, destination,"
+                " depart_date, return_date, trip_class, price, baseline_p50,"
+                " discount_pct, kind, flags, fingerprint, detected_at)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                (i, origin, "DXB", far7, far7, 0, 10000.0, 30000.0,
+                 70.0 if origin == "DEL" else 50.0, "drop", "[]", f"a{i}", at(0)))
+        c16.commit()
+        check("deals from every city are re-checked, the alert cities first",
+              [d["origin"] for d in verify.due(c16, NOW)] == ["GOI", "DEL"])
 
         print("\nonly the cities you fly from are emailed")
         c14 = db.connect(str(Path(tmp) / "origins.db"))

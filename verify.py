@@ -12,8 +12,8 @@ What it decides, and what it doesn't:
 * A deal whose live price still clears the detection gates (DEAL_RATIO of
   the expected price, at least MIN_ABS_SAVING off) is 'still'. One that
   doesn't is 'gone'. Same gates as detect.py -- no new threshold.
-* 'gone' only annotates the alert unless VERIFY_SUPPRESS_GONE is on. The two
-  sources have never been compared on a real deal, see config.py.
+* Only 'still' deals are emailed (VERIFY_REQUIRE_CONFIRMED, config.py): the
+  first real deals were Russian-market prices Google Flights put far higher.
 * Anything it can't compare like-for-like is 'skipped', and the alert says
   it was not re-checked.
 
@@ -131,11 +131,22 @@ def still_a_deal(d, live):
 
 
 def due(conn, now):
-    """Pending deals not re-checked recently, best first (notify's order)."""
+    """Recent unsent deals from ANY origin not re-checked lately.
+
+    Every deal is checked, not only those in ALERT_ORIGINS: a deal that is
+    shown anywhere (the digest, the review page) must have been confirmed
+    first. The alert cities go first, so the per-run cap spends itself on
+    what could reach the inbox.
+    """
     cutoff = (now - timedelta(hours=config.VERIFY_RECHECK_HOURS)) \
         .isoformat(timespec="seconds")
-    return [d for d in notify.pending(conn, limit=10**6)
-            if d["gf_checked_at"] is None or d["gf_checked_at"] < cutoff]
+    since = (now - timedelta(days=config.DIGEST_WINDOW_DAYS)) \
+        .isoformat(timespec="seconds")
+    rows = conn.execute(
+        "SELECT * FROM deal WHERE notified_at IS NULL AND detected_at >= ?"
+        " AND (gf_checked_at IS NULL OR gf_checked_at < ?)"
+        " ORDER BY discount_pct DESC", (since, cutoff)).fetchall()
+    return sorted(rows, key=lambda d: d["origin"] not in config.ALERT_ORIGINS)
 
 
 def run(conn, fetch=None, limit=None, pause=None, dry_run=False, now=None):

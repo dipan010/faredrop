@@ -66,8 +66,8 @@ def pending(conn, limit=25, window_days=None):
                    else window_days)
     since = (datetime.now(timezone.utc) - timedelta(days=window_days)) \
         .isoformat(timespec="seconds")
-    # Off by default -- see VERIFY_SUPPRESS_GONE in config.py.
-    gone = (" AND gf_status IS NOT 'gone'" if config.VERIFY_SUPPRESS_GONE
+    # Only deals Google Flights confirmed -- see VERIFY_REQUIRE_CONFIRMED.
+    gone = (" AND gf_status = 'still'" if config.VERIFY_REQUIRE_CONFIRMED
             else "")
     # Only the departure cities you fly from (config.ALERT_ORIGINS). Deals
     # elsewhere are still detected and listed by digest.py, just not sent.
