@@ -1,6 +1,6 @@
 # faredrop — Status
 
-Last reviewed: 2026-10-06
+Last reviewed: 2026-10-12
 
 | Built | Documented | Hosted | Posted |
 |---|---|---|---|
@@ -10,7 +10,7 @@ Last reviewed: 2026-10-06
 
 - Self-hosted fare-drop watcher on the Travelpayouts API, at https://github.com/dipan010/faredrop (public). Everything is committed and pushed.
 - README: "the price history is the product". Travelpayouts keeps only 7 days, so every day nothing collects is history lost for good.
-- **Collection days so far (UTC):** Oct 1 ✅ · Oct 2 ✅ 138/138 · **Oct 3 ❌ lost** (laptop asleep with no network) · Oct 4 ✅ 138/138 (completed by hand) · Oct 5 ✅ 138/138 on both GitHub and the laptop · Oct 6 ✅ 440/440 on GitHub (wide list, day one). Each day is 138 route-months.
+- **Collection days so far (UTC):** Oct 1 ✅ · Oct 2 ✅ 138/138 · **Oct 3 ❌ lost** (laptop asleep with no network) · Oct 4 ✅ 138/138 (completed by hand) · Oct 5 ✅ 138/138 on both GitHub and the laptop · Oct 6–11 ✅ 440/440 every day on GitHub (laptop 161/161). Each day is 138 route-months.
 - **Two independent collectors**, each with its own database and never merged:
   - **GitHub Actions** (`collect.yml`): the official history. Runs every 2 hours (:47 past even UTC hours), restoring from and storing to AES-encrypted snapshots on the `data` prerelease (`dbstore.py`). Collected Oct 5 completely (138/138). Every run has been green, but GitHub's schedule is unpunctual: in the first day, 3 of 5 slots ran, 2.5–6 h late, and one never ran. So the schedule went from 4×/day to every 2 h on 2026-10-06.
   - **Laptop** (launchd, `daily.sh`): 07:15/13:15/19:15/23:15 IST, a safety net until Oct 10. Each run also runs `watchdog.py`, which alerts if GitHub's newest snapshot is >30h old.
@@ -22,7 +22,7 @@ Last reviewed: 2026-10-06
 
 ## Phases to completion
 
-### Phase 1 — Start the clock (urgent: history accumulates only from here)
+### Phase 1 — Start the clock ✅ (exit met 2026-10-12)
 - [x] Token in `~/.faredrop.env` (chmod 600), sent as a header so it never appears in URLs or logs. `ORIGINS = ["BLR"]`.
 - [x] `refdata.py sync`, `probe.py`, `refdata.py destinations`, `collect.py --limit 3`, `--show-keys`; `_parse` fixed.
 - [x] `python3 test_pipeline.py` green, on both Homebrew 3.13 and launchd's `/usr/bin/python3` 3.9.
@@ -31,7 +31,7 @@ Last reviewed: 2026-10-06
 - [x] Catch-up slots (2026-10-04): 4 runs a day, each fetching only what today is missing; stops after 3 consecutive connection failures; `caffeinate` during runs; health reports each finished day once, with coverage.
 - **2026-10-03 was lost.** The Mac woke without network at 07:21 IST, the run failed every cell, then hung suspended and blocked the Oct 4 morning run. Oct 4 was completed by hand (138/138). So the clean week restarts: the exit is met if Oct 4–10 are all complete (check on Oct 11).
 - [-] ~~`sudo pmset repeat wakeorpoweron …` to wake the laptop daily~~: no longer needed now that GitHub Actions collects.
-- **Exit:** a complete day (≥90% of route-months) every day for a week, on the GitHub collector, with the laptop as backup. Clean week counted from Oct 4; check on Oct 11.
+- [x] **Exit met (reviewed 2026-10-12):** Oct 4–11 all complete on GitHub (138, 138, then 440/440 daily) and on the laptop, with no alerts. GitHub ran every day: 24 scheduled runs over Oct 6–11, 3–5 per day of 12 slots, 0 failures, first run of each UTC day by 06:48 UTC at the latest.
 
 ### Phase 2 — Let it accumulate, then calibrate
 - [x] Data volume (2026-10-06): measured yield was 0.18 new fares per call against a 0.5 placeholder, which put first baselines about 2 months out. An endpoint survey found `/v1/prices/calendar` (all cached round-trips per route in one call), and an origin survey found ~20× more data across Indian cities. Both are now collected.
@@ -75,6 +75,7 @@ No app yet. The value is in deal quality, which is unproven until real deals
 arrive (from ~2026-10-12). Three stages, with a decision point after the first two.
 
 ### Stage 1: prove the deals are good (2026-10-12 → early Nov, ~3–4 weeks)
+- Status 2026-10-12: 92 route-months ready (DEL 41, GOI 26, BOM 15, BLR 4, TRV 4, CCU 1, COK 1); yield 3.0 new fares per call, against 0.18 before the calendar. First real deals were detected 2026-10-12 00:09Z, all from DEL so not emailed: DEL→KTM ₹18,255 vs ~₹33k (AI non-stop, ×2 dates) and DEL→MOW ₹29,933 vs ~₹53.6k (1 stop). Only GOI, BLR and COK of `ALERT_ORIGINS` have baselines yet; MAA and HYD have none.
 - [ ] A verdict on every deal: a small private review page with "good / not for me / wrong" per deal. The verdicts are the evidence for tuning.
 - [ ] Tune on real data only: `DEAL_RATIO` / `MIN_ABS_SAVING` / `MISTAKE_Z`; per-day (calendar) vs per-month (/cheap) minima modelled apart if pooling skews; `VERIFY_SUPPRESS_GONE` on or off.
 - [ ] Track deals/week for `ALERT_ORIGINS`, the share worth booking, and the Google Flights confirmation rate.
