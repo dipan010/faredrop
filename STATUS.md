@@ -11,9 +11,9 @@ Last reviewed: 2026-10-12
 - Self-hosted fare-drop watcher on the Travelpayouts API, at https://github.com/dipan010/faredrop (public). Everything is committed and pushed.
 - README: "the price history is the product". Travelpayouts keeps only 7 days, so every day nothing collects is history lost for good.
 - **Collection days so far (UTC):** Oct 1 ✅ · Oct 2 ✅ 138/138 · **Oct 3 ❌ lost** (laptop asleep with no network) · Oct 4 ✅ 138/138 (completed by hand) · Oct 5 ✅ 138/138 on both GitHub and the laptop · Oct 6–11 ✅ 440/440 every day on GitHub (laptop 161/161). Each day is 138 route-months.
-- **Two independent collectors**, each with its own database and never merged:
+- **Collectors** (each with its own database, never merged):
   - **GitHub Actions** (`collect.yml`): the official history. Runs every 2 hours (:47 past even UTC hours), restoring from and storing to AES-encrypted snapshots on the `data` prerelease (`dbstore.py`). Collected Oct 5 completely (138/138). Every run has been green, but GitHub's schedule is unpunctual: in the first day, 3 of 5 slots ran, 2.5–6 h late, and one never ran. So the schedule went from 4×/day to every 2 h on 2026-10-06.
-  - **Laptop** (launchd, `daily.sh`): 07:15/13:15/19:15/23:15 IST, a safety net until Oct 10. Each run also runs `watchdog.py`, which alerts if GitHub's newest snapshot is >30h old.
+  - **Laptop** (launchd, `daily.sh`): **watchdog only since 2026-10-12.** At 07:15/13:15/19:15/23:15 IST it runs `watchdog.py`, which alerts if GitHub's newest snapshot is >30h old. No collection, backups or emails. Its own DB (BLR, Oct 1–11) is kept in `data/`; `LAPTOP_COLLECTS=1` in `~/.faredrop.env` restores the full pipeline.
 - **Secrets:** repository secrets `TRAVEL_PAYOUTS_API_KEY`, `FAREDROP_DB_KEY`, `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_TO`, plus the same values in `~/.faredrop.env` (chmod 600). `FAREDROP_DB_KEY` is also in the user's password manager (confirmed 2026-10-05). It is the only way to decrypt the history.
 - **Wider collection (2026-10-06):** GitHub collects 302 routes from 21 Indian origins (`routes.json`; the laptop stays on its 23 BLR routes). Every route gets one `/v1/prices/calendar` call; the original 23 BLR routes also keep the per-month `/cheap` walk. That's ~440 calls and ~10 min per complete day. Survey: Delhi 666 cached fares, Goa 496, Mumbai 305, BLR 112. Calendar cells are expected from `CALENDAR_SINCE` = 2026-10-06.
 - Routes (laptop) are international only: 23 from BLR. 17 are seeded from `/v1/city-directions` (Aviasales' user base, so it includes MOW and AER); `config.EXTRA_DESTINATIONS` adds SIN, KUL, LON, PAR, FRA and AMS. The 13 domestic routes are inactive. Europe is thin in this feed. To change routes, edit `EXTRA_DESTINATIONS` and run `refdata.py destinations`; the collector walks the `route` table.
@@ -63,8 +63,8 @@ Last reviewed: 2026-10-12
 ### Phase 4 (optional) — Host and publish
 - [x] **Collector on GitHub Actions**, live 2026-10-04: secrets set, history seeded, first manual run green (restored 439 responses, fetched 0 since the day was complete, stored 439, no secrets in the public log). `collect.yml` runs at 07:17/13:17/19:17/23:17 IST; history is AES-encrypted snapshots on the `data` prerelease (`dbstore.py`). The key is in `~/.faredrop.env` and the `FAREDROP_DB_KEY` secret, and should be in the user's password manager.
 - [x] Scheduled runs fire, but late (2.5–6 h) and some are skipped (first day: 3 of 5 slots). Moved to every 2 h, 2026-10-06.
-- [ ] Retiring laptop collection is decided on 2026-10-10 from a week of GitHub punctuality, not by default.
-- [ ] **Open decision (asked 2026-10-05):** while both collect, each side sends its own emails, so a gap or a deal would be emailed twice. Proposed: make the laptop quiet (collect, back up and watch only; no `notify.py` or `health.py` emails) until it stops collecting.
+- [x] Laptop collection retired 2026-10-12 after a clean GitHub week; the laptop is now watchdog only. This also settles the duplicate-email question.
+- [x] ~~Duplicate emails while both collect~~: resolved by making the laptop watchdog-only (2026-10-12).
 - [x] ~~Move the collector to an always-on host~~: done with GitHub Actions instead (free for public repos).
 - [ ] Optional read-only digest page (static, regenerated daily).
 - [ ] Write-up comparing it with the Zomunk model it reproduces; link here.

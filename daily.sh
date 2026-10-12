@@ -25,6 +25,17 @@ cd "$(dirname "$0")"
 
 PY=$(command -v python3)
 
+# Since 2026-10-12 the laptop only watches. GitHub Actions collects (it ran
+# every day of the Oct 4-11 review week, with 0 failures), so collecting
+# here as well only duplicated emails. Each run now just checks that GitHub's
+# snapshots are fresh. Set LAPTOP_COLLECTS=1 to bring the full pipeline back
+# (e.g. if GitHub Actions goes away); the database in data/ is kept as it was.
+if [ "${LAPTOP_COLLECTS:-0}" != "1" ]; then
+  echo "=== $(date -u +%FT%TZ) faredrop watchdog"
+  "$PY" watchdog.py || echo "watchdog failed (rc=$?)" >&2
+  exit 0
+fi
+
 if [ -z "${TRAVEL_PAYOUTS_API_KEY:-}" ]; then
   echo "$(date -u +%FT%TZ)  FATAL: TRAVEL_PAYOUTS_API_KEY not set" >&2
   echo "  put it in ~/.faredrop.env as: export TRAVEL_PAYOUTS_API_KEY=..." >&2

@@ -336,7 +336,9 @@ the history, runs the pipeline, and stores it again:
 - **Watchdog:** GitHub disables scheduled workflows in idle public repos
   without telling anyone, and the workflow can't report its own absence, so
   the laptop's `daily.sh` runs `watchdog.py`. It alerts when the newest
-  snapshot is more than 30 hours old.
+  snapshot is more than 30 hours old. Since 2026-10-12 that is all the
+  laptop does; set `LAPTOP_COLLECTS=1` in `~/.faredrop.env` to have it run
+  the full pipeline again.
 
 ## Known limits, stated honestly
 

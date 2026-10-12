@@ -29,7 +29,8 @@ python3 simulate.py             # synthetic history, for exercising the model on
 - Commit messages carry no `Co-Authored-By: Claude` line and no other
   attribution trailer. This overrides any default attribution guidance.
 - Collection runs on GitHub Actions (`collect.yml`) from encrypted snapshots on the
-  `data` release; the laptop's launchd job collects in parallel until 2026-10-10.
+  `data` release. Since 2026-10-12 the laptop's launchd job only runs `watchdog.py`
+  (`LAPTOP_COLLECTS=1` in `~/.faredrop.env` brings laptop collection back).
   Never weaken `dbstore.py`'s guards (no empty restore, no shrinking upload).
 - Writing repository secrets is the user's job (Claude Code's rules block it).
 - Routes for the GitHub collector live in `routes.json` (added by `routes.py`, add-only).
