@@ -752,6 +752,40 @@ def main():
               gfcollect.review_watched() and not any(
                   o in config.ALERT_ORIGINS for o, _ in gfcollect.review_watched()))
 
+        # GOI->SHJ 2027-02-18, Oct 13-16: a page with one unpriced flight,
+        # every time. It stopped each run before the lookup was recorded, so
+        # discovery chose it again: 42 runs on one trip.
+        cs = db.connect(str(Path(tmp) / "stuck.db"))
+        dep_s = (today_g + timedelta(days=40)).isoformat()
+        ret_s = (today_g + timedelta(days=47)).isoformat()
+        collect._insert(cs, [{**rows[0], "origin": "GOI", "destination": "SHJ",
+                              "depart_date": dep_s, "return_date": ret_s,
+                              "depart_month": dep_s[:7], "price": 9000.0 + i,
+                              "airline": f"S{i}", "fetched_at": at(0)}
+                             for i in range(3)])
+        unpriced = [None, None, None, [[["X", ["AI"], [[None] * 7]], []]]]
+
+        def stuck_page(origin, dest, depart, ret, filtered):
+            return unpriced if dest == "SHJ" else gpage(36000)
+        rs = gfcollect.run(cs, fetch=stuck_page, today=today_g,
+                           rng=random.Random(8), pause=0,
+                           routes=[("GOI", "SHJ"), ("GOI", "DXB")])
+        check(f"a page that prices nothing is recorded, and the run goes on ({rs['unpriced']} unpriced)",
+              rs["unpriced"] >= 1 and rs["status"] == "ok" and rs["looked_up"] >= 2)
+        check("and that trip is not chosen again by the next run",
+              all(t[:3] != ("GOI", "SHJ", dep_s)
+                  for t in gfcollect.discovery(cs, [("GOI", "SHJ")], today_g, 5)))
+
+        cq = db.connect(str(Path(tmp) / "stuckconfirm.db"))
+        gfcollect.run(cq, fetch=lambda *a: gpage(30000), today=today_g,
+                      rng=random.Random(2), pause=0, routes=[("BLR", "DXB")])
+        rq = gfcollect.run(cq, fetch=lambda o, d, a, b, f: unpriced if f else gpage(36000),
+                           today=today_g, rng=random.Random(2), pause=0,
+                           routes=[("BLR", "DXB")])
+        check("a confirming page that prices nothing settles the candidate as not bookable",
+              rq["status"] == "ok" and rq["owed_confirmed"] >= 1
+              and gfcollect.owed(cq, today_g) == [])
+
         print("\nGoogle refusals: retry once, never lose a find")
         co = db.connect(str(Path(tmp) / "owed.db"))
         state = {"n": 0}

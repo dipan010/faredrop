@@ -1,6 +1,6 @@
 # faredrop — Status
 
-Last reviewed: 2026-10-12
+Last reviewed: 2026-10-16
 
 | Built | Documented | Hosted | Posted |
 |---|---|---|---|
@@ -73,7 +73,8 @@ Last reviewed: 2026-10-12
 - **~2026-10-18: usable.** Deal emails for `ALERT_ORIGINS` that have passed confirmation in a later run plus the Travelpayouts cross-check. Thresholds are still placeholders.
 - **~2026-10-30: done (personal tool).** Rules tuned on ~15 rated deals; a known hit rate.
 - Levers in place for that: `GF_REVIEW_SHARE` (25% of Google lookups explore the 16 other origins × the 25 destinations, review page only, never emailed); Stage 1 shortened to 2 weeks.
-- [ ] **2026-10-15 decision:** Google answer rate from GitHub (`gf_raw.ok` by day). If no blocks have stuck, raise `GF_DAILY_LOOKUPS` (40 → 80). If the answer rate is too low for these dates, say so and re-plan rather than slip quietly.
+- [x] **2026-10-15 decision (made 2026-10-16):** budget stays at 40. It was never the limit: 8–15 Google requests a day were used. Real limits: (1) **a bug.** Google's page for GOI→SHJ 2027-02-18 prices nothing, every time. That stopped each run *before* the lookup was recorded, so discovery chose the same trip again: 42 runs, Oct 13–16, ~4 days of Google effort on one trip and no new candidates. Fixed: every lookup counts as seen (read from `gf_raw`); a page that prices nothing is recorded and the run moves on; the same in the confirmation step. (2) **GitHub ran gf.yml only 2–6 times a day of 24.** Hard refusals were about a third of requests. Travelpayouts was complete every day (Oct 12–15, 440/440).
+- [ ] **Dates at risk:** no new Google candidate since Oct 12 (bug). Re-assess ~2026-10-19 with 2–3 days of working runs; expect "usable" to slip a few days past Oct 18.
 - [ ] Review page refresh is manual, in a session ("refresh the review page"): every 2–3 days until Oct 30, so verdicts keep pace.
 
 ## Roadmap after Oct 11 (agreed 2026-10-06)
@@ -109,9 +110,9 @@ arrive (from ~2026-10-12). Three stages, with a decision point after the first t
 - Travelpayouts mirrors Aviasales' mostly Russian/CIS users: rich for MOW/CMB, near-empty for LON, SIN, TYO and the US, which are the deals Indian travellers want.
 - [ ] Option: Google Flights (fast-flights) as a second collection source, limited to `ALERT_ORIGINS` × ~30 curated destinations. Reachable from GitHub (gf-probe 3/3). Trade-off: scraping against Google's terms. Tolerable for personal use, a liability if it is ever sold. **User's call.**
 
-### AI-quality role focus (added 2026-10-12)
-Evidence for an AI-quality / evals role: a system that runs every day, human verdicts on its output (review page: good / not_for_me / wrong), and quality failures traced to a cause and fixed (Russian-market fares; Google's incomplete page). No new tasks: Stage 1's tracking is the evidence.
-- [ ] At the end of Stage 1, write up alert precision from the verdicts (share of emailed deals marked good, before and after each fix), with the sample size stated.
+### AI-quality role focus (revised 2026-10-13)
+The **lead story** for an AI-quality / evals role, for "turn a vague complaint into something measurable, then move the number". "The deals feel wrong" became: the Travelpayouts-vs-Google reliability study, the Russian-market seller bias, Google's incomplete-page failure, the cross-source consistency check, and human verdicts tracking precision. It runs every day and has human labels on its output. No new build tasks: Stage 1's tracking is the evidence.
+- [ ] At the end of Stage 1, a write-up: each failure, how it was found, the measurement, the fix, and alert precision from the verdicts before and after (sample sizes stated, intervals where n allows).
 
 ### Decision point (~2026-10-30): personal tool or product?
 | | Personal tool | Product (Zomunk competitor) |

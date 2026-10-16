@@ -112,10 +112,15 @@ def is_candidate(q):
 # --- choosing trips -------------------------------------------------------
 
 def _recently_seen(conn, today):
+    """Trips searched lately, by any outcome. Read from gf_raw, not only
+    gf_quote: a lookup that never got recorded as a quote must still count,
+    or the same trip is chosen run after run."""
     since = (today - timedelta(days=config.GF_RECHECK_DAYS)).isoformat()
     return {tuple(r) for r in conn.execute(
-        "SELECT origin, destination, depart_date, return_date FROM gf_quote"
-        " WHERE substr(fetched_at, 1, 10) > ?", (since,))}
+        "SELECT origin, destination, depart_date, return_date FROM gf_raw"
+        " WHERE purpose = 'judge' AND substr(fetched_at, 1, 10) > ?"
+        " UNION SELECT origin, destination, depart_date, return_date"
+        " FROM gf_quote WHERE substr(fetched_at, 1, 10) > ?", (since, since))}
 
 
 def discovery(conn, routes, today, n):
@@ -282,7 +287,7 @@ def run(conn, fetch=None, today=None, rng=None, pause=None, dry_run=False,
     routes = routes if routes is not None else watched()
     stats = {"budget_left": 0, "owed_confirmed": 0, "looked_up": 0,
              "with_insights": 0, "candidates": 0, "deals": 0, "retries": 0,
-             "status": "ok"}
+             "unpriced": 0, "status": "ok"}
 
     left = min(config.GF_PER_RUN,
                config.GF_DAILY_LOOKUPS - verify.lookups_today(conn, today))
@@ -340,7 +345,10 @@ def run(conn, fetch=None, today=None, rng=None, pause=None, dry_run=False,
         that judged it; records the answer. The fare must reproduce (an
         incomplete page doesn't, twice) and fit Travelpayouts' market."""
         _, filtered_payload, now = lookup(trip, True, "confirm")
-        best = verify.cheapest(filtered_payload)
+        try:
+            best = verify.cheapest(filtered_payload)
+        except RuntimeError:              # prices nothing: not bookable
+            best = None
         ok = bool(best
                   and is_candidate({**q, "price": best["price"]})
                   and abs(best["price"] - q["price"]) / q["price"]
@@ -366,7 +374,16 @@ def run(conn, fetch=None, today=None, rng=None, pause=None, dry_run=False,
             raw_id, payload, now = lookup(trip, False, "judge")
             stats["looked_up"] += 1
             q = insights(payload)
-            best = verify.cheapest(payload)
+            try:
+                best = verify.cheapest(payload)
+            except RuntimeError:
+                # A page that reads fine but prices nothing: Google's answer
+                # for some trips (GOI->SHJ 2027-02-18 every time, 2026-10-13
+                # to 16). Not a block -- other trips were answered in between.
+                # Record it and move on; stopping here, before the record,
+                # made discovery pick the same trip 42 runs running.
+                best = None
+                stats["unpriced"] += 1
             nights = (date.fromisoformat(trip[3])
                       - date.fromisoformat(trip[2])).days
             cur = conn.execute(
