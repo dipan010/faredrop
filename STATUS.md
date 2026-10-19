@@ -4,7 +4,7 @@ Last reviewed: 2026-10-19, second session (budget raised, dead-route skip; detai
 
 | Built | Documented | Hosted | Posted |
 |---|---|---|---|
-| ✅ Travelpayouts collector (history) + Google Flights deal finder (`gfcollect.py`) + confirm/notify/health, 187 token-free checks, CI | ✅ README, this file, CLAUDE.md rules | ✅ GitHub Actions (`collect.yml` every 2 h, `gf.yml` hourly); encrypted history on the `data` release; laptop is watchdog only | ❌ |
+| ✅ Travelpayouts collector (history) + Google Flights deal finder (`gfcollect.py`) + confirm/notify/health, 190 token-free checks, CI | ✅ README, this file, CLAUDE.md rules | ✅ GitHub Actions (`collect.yml` every 2 h, `gf.yml` hourly); encrypted history on the `data` release; laptop is watchdog only | ❌ |
 
 ## Handoff — where the project is (2026-10-19)
 
@@ -13,7 +13,7 @@ Last reviewed: 2026-10-19, second session (budget raised, dead-route skip; detai
 **How it works now**
 1. **History (Travelpayouts, `collect.yml`, every 2 h, idempotent per UTC day):** 302 international routes from 21 Indian origins (`routes.json`, added add-only by `routes.py`). One `/v1/prices/calendar` call per route, plus the per-month `/v1/prices/cheap` walk for the original 23 BLR routes: 440 cells a day. Complete every day since Oct 4 (Oct 3 was lost on the laptop era). 6,737 raw responses and 145 route-month baselines as of Oct 19. Used for discovery and as a sanity check, **never as a judge of a deal**: its cheapest fares are often Russian-market seller prices (see "Finding 2026-10-12").
 2. **Deals (Google Flights, `gfcollect.py`, `gf.yml` hourly plus a step in `collect.yml`):** watches `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI) × 25 destinations (`gf_routes.json`), any 2–21-night trip 7–180 days out. 25% of lookups explore the 16 other origins for review only (never emailed). An unfiltered search reads Google's own price insights (usual price, typical range, ~62-day history). Candidate = fare ≤ bottom of the typical range and ≥ ₹4,000 under usual. Confirmed **in a later run** with a filtered search (≤1 stop, no self-transfers): the fare must reproduce within 5%, and Google's usual must fit Travelpayouts' typical (0.6–1.6×) with the deal below it. Only then is it a deal; email goes out only for `ALERT_ORIGINS`.
-3. **Google budget:** 80 requests a day (40 until 2026-10-19), 15 per run, shared with the re-check (`verify.py`, which confirms Travelpayouts deals from alert cities only). Spaced ~40 s; one retry 90 s after a refusal; a refused confirmation is owed to the next run; a page that prices nothing is recorded and skipped; discovery skips a route whose last 3 pages in 14 days all priced nothing (`GF_DEAD_LOOKUPS`) and retries it once those pages are 14 days old.
+3. **Google budget:** 80 requests a day (40 until 2026-10-19), 15 per run, shared with the re-check (`verify.py`, which confirms Travelpayouts deals from alert cities only). Spaced ~40 s; one retry 90 s after a refusal; a refused confirmation is owed to the next run; a page that prices nothing is recorded and skipped; discovery skips a route whose last 3 pages all priced nothing (`GF_DEAD_LOOKUPS`), then probes it with one lookup after 14 days, doubling the wait with each further empty page, up to 60.
 4. **Storage and safety:** history = AES-256 snapshots on the `data` prerelease (`dbstore.py`: never restores empty, never uploads a smaller DB, newest 12 plus one a day kept). Key `FAREDROP_DB_KEY` is in `~/.faredrop.env`, the repo secret, and the user's password manager. Secrets in the repo: `TRAVEL_PAYOUTS_API_KEY`, `FAREDROP_DB_KEY`, `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_TO`. Alerts: `health.py` (per-day coverage, once), `watchdog.py` on the laptop (alerts if snapshots go >30 h stale).
 
 **Results so far**
@@ -26,8 +26,8 @@ Last reviewed: 2026-10-19, second session (budget raised, dead-route skip; detai
 **Next actions, in order**
 1. [x] GOI→DXB added to the review page (2026-10-19). **The user should rate it, and GOI→CMB.**
 2. [x] Budget 40 → 80 a day (user's decision, 2026-10-19), `GF_PER_RUN` stays 15. "Days without a block" read as no wholesale refusal; ~20% single refusals still happen daily. **Watch Oct 20–22:** answer rate (stop raising, or step back, if it falls well under ~75%), and Travelpayouts still 440/440 (gf runs now work later into the day and share the `collect` concurrency group).
-3. [x] Priced nothing: four GOI routes (see Results). Discovery now skips dead routes (user's decision, 2026-10-19); on Oct 19's data that is GOI→HKT/KTM/MLE/SGN/SHJ. Check on Oct 22 that the empty-page share fell. Note: exploration orders routes by all-time lookups, so it won't revisit these soon; recovery is by the 14-day window.
-4. (Proposed to the user 2026-10-19, awaiting agreement: usable = Oct 17, the first confirmed deal email; done ≈ Nov 9–16.) Re-plan the dates: "usable" slipped from Oct 18. Deals now flow, about 1 confirmed per 2–3 days. Tuning needs ~15 rated deals, so "done" is likely early-to-mid November, not Oct 30. Agree a new date with the user.
+3. [x] Priced nothing: four GOI routes (see Results). Discovery now skips dead routes (user's decision, 2026-10-19); on Oct 19's data that is GOI→HKT/KTM/MLE/SGN/SHJ. Check on Oct 22 that the empty-page share fell. Back-off added the same day (a plain 14-day window would have cost 3 lookups per dead route per 14 days): GOI→SGN gets its probe ~Nov 2, the other four wait 60 days.
+4. [x] **Dates agreed 2026-10-19:** usable = Oct 17 (first correct confirmed deal email); done ≈ Nov 9–16, when ~15 deals are rated. It holds only if the review page is refreshed every 2–3 days in a session and the user rates as deals arrive. Old note: Re-plan the dates: "usable" slipped from Oct 18. Deals now flow, about 1 confirmed per 2–3 days. Tuning needs ~15 rated deals, so "done" is likely early-to-mid November, not Oct 30. Agree a new date with the user.
 5. After about 2 weeks of data: candidate and deal rate by `gf_quote.reason` (discovery vs exploration vs review), then move budget to what finds deals; tune `GF_BELOW_RANGE_LOW` / `MIN_ABS_SAVING` on verdicts.
 6. Then the decision point (personal tool vs product) and Stage 3 (holiday-aware ranking).
 
@@ -84,12 +84,13 @@ Last reviewed: 2026-10-19, second session (budget raised, dead-route skip; detai
 - [ ] Optional read-only digest page (static, regenerated daily).
 - [ ] Write-up comparing it with the Zomunk model it reproduces; link here.
 
-## Target dates (agreed 2026-10-12)
+## Target dates (agreed 2026-10-12, re-agreed 2026-10-19)
+- **Re-agreed 2026-10-19: usable = Oct 17** (GOI→DXB, the first correct confirmed deal email). **Done ≈ Nov 9–16**, once ~15 deals are rated. Basis: 0 Google deals rated so far; 1 confirmed deal per ~3.5 days at 40 lookups (faster at 80 is an estimate); review page refreshed every 2–3 days in a session.
 - **~2026-10-18: usable.** Deal emails for `ALERT_ORIGINS` that have passed confirmation in a later run plus the Travelpayouts cross-check. Thresholds are still placeholders.
 - **~2026-10-30: done (personal tool).** Rules tuned on ~15 rated deals; a known hit rate.
 - Levers in place for that: `GF_REVIEW_SHARE` (25% of Google lookups explore the 16 other origins × the 25 destinations, review page only, never emailed); Stage 1 shortened to 2 weeks.
 - [x] **2026-10-15 decision (made 2026-10-16):** budget stays at 40. It was never the limit: 8–15 Google requests a day were used. Real limits: (1) **a bug.** Google's page for GOI→SHJ 2027-02-18 prices nothing, every time. That stopped each run *before* the lookup was recorded, so discovery chose the same trip again: 42 runs, Oct 13–16, ~4 days of Google effort on one trip and no new candidates. Fixed: every lookup counts as seen (read from `gf_raw`); a page that prices nothing is recorded and the run moves on; the same in the confirmation step. (2) **GitHub ran gf.yml only 2–6 times a day of 24.** Hard refusals were about a third of requests. Travelpayouts was complete every day (Oct 12–15, 440/440).
-- [ ] **Dates at risk:** no new Google candidate since Oct 12 (bug). Re-assess ~2026-10-19 with 2–3 days of working runs; expect "usable" to slip a few days past Oct 18.
+- [x] **Dates at risk** (resolved 2026-10-19 by the re-agreed dates above): no new Google candidate since Oct 12 (bug). Re-assess ~2026-10-19 with 2–3 days of working runs; expect "usable" to slip a few days past Oct 18.
 - [ ] Review page footer still says "typical" is the Travelpayouts median; for Google deals it is Google's usual. Fix on the next republish.
 - [ ] Review page refresh is manual, in a session ("refresh the review page"): every 2–3 days until Oct 30, so verdicts keep pace.
 

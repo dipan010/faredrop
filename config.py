@@ -61,13 +61,16 @@ GF_EXPLORE_SHARE = 0.3            # of lookups spent on random trips
 # rather than mid-November (chosen 2026-10-12).
 GF_REVIEW_SHARE = 0.25
 GF_RECHECK_DAYS = 3               # don't look the same trip up again sooner
-# Discovery skips a route whose last GF_DEAD_LOOKUPS Google pages, within
-# GF_DEAD_DAYS, all priced nothing. Oct 16-19: GOI->SHJ/HKT/KTM/MLE were 37 of
+# Discovery skips a route whose last GF_DEAD_LOOKUPS Google pages all priced
+# nothing. It is probed again with ONE lookup after GF_DEAD_DAYS; each further
+# empty page doubles the wait, up to GF_DEAD_MAX_DAYS. (A plain 14-day window,
+# 2026-10-19, cost 3 lookups per dead route per 14 days.) Oct 16-19: GOI->SHJ/HKT/KTM/MLE were 37 of
 # 55 empty pages (a third of all lookups), every date tried: no itinerary
 # within MAX_STOPS, which judging searches use too, so nothing emailable is
-# lost. A route is retried once its empty pages age out of the window.
+# lost.
 GF_DEAD_LOOKUPS = 3
 GF_DEAD_DAYS = 14
+GF_DEAD_MAX_DAYS = 60
 GF_RAW_KEEP_DAYS = 14
 # A Google-sourced deal: the fare is at or below the bottom of Google's own
 # typical range for that trip, and saves MIN_ABS_SAVING against its usual

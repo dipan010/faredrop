@@ -124,18 +124,28 @@ def _recently_seen(conn, today):
 
 
 def dead_routes(conn, today):
-    """Routes whose last GF_DEAD_LOOKUPS judged pages, within GF_DEAD_DAYS,
-    all priced nothing. Refusals leave no gf_quote row, so they don't count."""
-    since = (today - timedelta(days=config.GF_DEAD_DAYS)).isoformat()
-    recent = {}
-    for o, d, price in conn.execute(
-            "SELECT origin, destination, price FROM gf_quote"
-            " WHERE substr(fetched_at, 1, 10) >= ? ORDER BY fetched_at DESC",
-            (since,)):
-        recent.setdefault((o, d), []).append(price)
-    n = config.GF_DEAD_LOOKUPS
-    return {k for k, p in recent.items()
-            if len(p) >= n and all(x is None for x in p[:n])}
+    """Routes whose last GF_DEAD_LOOKUPS pages all priced nothing, still
+    inside their wait: GF_DEAD_DAYS, doubled for each empty page beyond
+    those, at most GF_DEAD_MAX_DAYS. When the wait ends, one lookup decides:
+    empty, and the route sleeps twice as long; priced, and it is live again.
+    Refusals leave no gf_quote row, so they don't count."""
+    pages = {}
+    for o, d, price, at in conn.execute(
+            "SELECT origin, destination, price, fetched_at FROM gf_quote"
+            " ORDER BY fetched_at DESC"):
+        pages.setdefault((o, d), []).append((price, at))
+    n, dead = config.GF_DEAD_LOOKUPS, set()
+    for key, p in pages.items():
+        empty = 0
+        while empty < len(p) and p[empty][0] is None:
+            empty += 1
+        if empty < n:
+            continue
+        wait = min(config.GF_DEAD_DAYS * 2 ** (empty - n),
+                   config.GF_DEAD_MAX_DAYS)
+        if (today - date.fromisoformat(p[0][1][:10])).days < wait:
+            dead.add(key)
+    return dead
 
 
 def discovery(conn, routes, today, n):

@@ -337,7 +337,8 @@ exactly what deal detection picks.
   *explore*: random dates and lengths, on the routes Google has seen least.
   Discovery skips a route whose last 3 Google pages (14 days) all priced
   nothing (none within `MAX_STOPS`), as four Goa routes did on every
-  date; it is retried once those pages age out of the window.
+  date. One probe after 14 days; each further empty page doubles the
+  wait, up to 60 days.
   `gf_quote.reason` records which, to compare them later.
 - **Judging:** an unfiltered Google search carries Google's own price
   insights for that exact trip: its usual price, its typical range and about

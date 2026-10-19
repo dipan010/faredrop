@@ -785,13 +785,18 @@ def main():
                               "airline": f"D{i}", "fetched_at": at(0)}
                              for i in range(3)])
 
-        def quote(price, hour):
+        def quote(price, hour, days_ago=0):
+            day = today_g - timedelta(days=days_ago)
             cd.execute("INSERT INTO gf_quote (raw_id, origin, destination,"
                        " depart_date, return_date, nights, fetched_at, reason,"
                        " price) VALUES (0, 'GOI', 'SHJ', '2027-01-01',"
                        " '2027-01-08', 7, ?, 'discovery', ?)",
-                       (f"{today_g.isoformat()}T{hour:02d}:00:00+00:00", price))
+                       (f"{day.isoformat()}T{hour:02d}:00:00+00:00", price))
             cd.commit()
+
+        def dead_on(days_later):
+            return ("GOI", "SHJ") in gfcollect.dead_routes(
+                cd, today_g + timedelta(days=days_later))
         for h in (1, 2):
             quote(None, h)
         check("two empty pages in a row don't make a route dead",
@@ -799,7 +804,16 @@ def main():
         quote(None, 3)
         check("three do: discovery skips it",
               gfcollect.discovery(cd, [("GOI", "SHJ")], today_g, 5) == [])
-        quote(31000.0, 4)
+        check("for 14 days, then one probe is allowed",
+              dead_on(13) and not dead_on(14))
+        quote(None, 5)
+        check("a 4th empty page doubles the wait to 28 days",
+              dead_on(27) and not dead_on(28))
+        for h in range(6, 14):
+            quote(None, h)
+        check("and the wait stops growing at 60 days",
+              dead_on(59) and not dead_on(60))
+        quote(31000.0, 23)
         check("and a newer priced page brings it back",
               len(gfcollect.discovery(cd, [("GOI", "SHJ")], today_g, 5)) == 1)
 
