@@ -103,7 +103,8 @@ live price still clears the gates are emailed.
 
 **The quality bar filters.** A fare with more than `MAX_STOPS` (1) stops is
 never a deal, however cheap; it is not merely flagged. Deals are emailed
-only for departure cities in `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI).
+only for departure cities in `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI, and
+GOX, Goa's Mopa airport, since 2026-10-19).
 Every other origin is still collected and still shows in `digest.py`.
 
 **Condition on how far ahead you are booking.** A fare 200 days out and one
@@ -329,7 +330,7 @@ higher. A 12-fare comparison found Travelpayouts' ordinary prices within
 about 10% of Google, but its cheapest outliers unreliable, and those are
 exactly what deal detection picks.
 
-- **Watched:** `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI) × the 25
+- **Watched:** `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI, GOX) × the 25
   destinations in `gf_routes.json`. Any trip of 2–21 nights departing 7–180
   days out.
 - **Which trips get looked up:** most come from *discovery*, recent
@@ -338,7 +339,9 @@ exactly what deal detection picks.
   Discovery skips a route whose last 3 Google pages (14 days) all priced
   nothing (none within `MAX_STOPS`), as four Goa routes did on every
   date. One probe after 14 days; each further empty page doubles the
-  wait, up to 60 days.
+  wait, up to 60 days. Travelpayouts files both Goa airports as GOI, so
+  its Goa fares feed discovery and the cross-check for GOI and GOX
+  (`TP_CITY`), one airport per route per run.
   `gf_quote.reason` records which, to compare them later.
 - **Judging:** an unfiltered Google search carries Google's own price
   insights for that exact trip: its usual price, its typical range and about

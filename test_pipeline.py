@@ -817,6 +817,32 @@ def main():
         check("and a newer priced page brings it back",
               len(gfcollect.discovery(cd, [("GOI", "SHJ")], today_g, 5)) == 1)
 
+        # Goa: Travelpayouts files both airports as GOI; Google prices GOX->SHJ
+        # but not GOI->SHJ (2026-10-19).
+        cx = db.connect(str(Path(tmp) / "gox.db"))
+        collect._insert(cx, [{**rows[0], "origin": "GOI", "destination": "SHJ",
+                              "depart_date": dep_s, "return_date": ret_s,
+                              "depart_month": dep_s[:7], "price": 9000.0 + i,
+                              "airline": f"X{i}", "fetched_at": at(0)}
+                             for i in range(6)])
+        goa = [("GOI", "SHJ"), ("GOX", "SHJ")]
+        d1 = gfcollect.discovery(cx, goa, today_g, 5)
+        check(f"Goa's fares go to one Goa airport per run ({d1})",
+              len(d1) == 1 and d1[0][1] == "SHJ")
+        for h in range(3):
+            cx.execute("INSERT INTO gf_quote (raw_id, origin, destination,"
+                       " depart_date, return_date, nights, fetched_at, reason)"
+                       " VALUES (0, 'GOI', 'SHJ', '2027-01-01', '2027-01-08', 7,"
+                       " ?, 'discovery')",
+                       (f"{today_g.isoformat()}T0{h}:00:00+00:00",))
+        cx.commit()
+        check("and to GOX once GOI's route is dead",
+              [t[0] for t in gfcollect.discovery(cx, goa, today_g, 5)] == ["GOX"])
+        check("GOX is judged against Travelpayouts' Goa (GOI) fares",
+              gfcollect.tp_typical(cx, "GOX", "SHJ", dep_s, today_g)
+              == gfcollect.tp_typical(cx, "GOI", "SHJ", dep_s, today_g)
+              is not None)
+
         cq = db.connect(str(Path(tmp) / "stuckconfirm.db"))
         gfcollect.run(cq, fetch=lambda *a: gpage(30000), today=today_g,
                       rng=random.Random(2), pause=0, routes=[("BLR", "DXB")])

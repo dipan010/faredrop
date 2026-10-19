@@ -92,7 +92,13 @@ GF_TP_MIN_FARES = 5
 # Departure cities whose deals are emailed. Collection covers every origin in
 # routes.json; deals elsewhere are still detected and shown by digest.py, but
 # not sent. BLR plus nearby, chosen 2026-10-06.
-ALERT_ORIGINS = {"BLR", "MAA", "COK", "HYD", "GOI"}
+# GOX (Goa's Mopa airport) added 2026-10-19: Google prices GOX->SHJ, while
+# GOI->SHJ priced nothing on every date tried.
+ALERT_ORIGINS = {"BLR", "MAA", "COK", "HYD", "GOI", "GOX"}
+# Google searches airports; Travelpayouts files some under their city's code
+# (GOI = all of Goa). Its fares for the city feed discovery and the cross-check
+# for each such airport.
+TP_CITY = {"GOX": "GOI"}
 # Carriers we don't want to be alerted about, by IATA code.
 AIRLINE_BLOCKLIST = set()
 

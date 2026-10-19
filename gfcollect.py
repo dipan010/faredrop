@@ -154,7 +154,8 @@ def discovery(conn, routes, today, n):
     "Cheap-looking" is the fare against its own route's median in the same
     window: crude, but only used to decide where to spend a Google lookup.
     At most one trip per route per run, so one route can't eat the budget.
-    Routes Google keeps pricing nothing for are skipped (dead_routes).
+    Routes Google keeps pricing nothing for are skipped (dead_routes). A
+    city's fares (Travelpayouts' GOI) go to one of its airports per run.
     """
     if n <= 0:
         return []
@@ -163,7 +164,14 @@ def discovery(conn, routes, today, n):
     last = (today + timedelta(days=hi)).isoformat()
     since = (today - timedelta(days=2)).isoformat()
     seen = _recently_seen(conn, today)
-    wanted = set(routes) - dead_routes(conn, today)
+    live = set(routes) - dead_routes(conn, today)
+    # Travelpayouts route -> the live Google routes it stands for (GOI's
+    # fares stand for both Goa airports, config.TP_CITY).
+    airports = {}
+    for o, d in sorted(live):
+        airports.setdefault((config.TP_CITY.get(o, o), d), []).append((o, d))
+    looked = {tuple(r[:2]): r[2] for r in conn.execute(
+        "SELECT origin, destination, count(*) FROM gf_quote GROUP BY 1, 2")}
     by_route = {}
     for r in conn.execute(
             "SELECT origin, destination, depart_date, return_date, price"
@@ -171,7 +179,7 @@ def discovery(conn, routes, today, n):
             " AND return_date IS NOT NULL AND depart_date BETWEEN ? AND ?",
             (since, first, last)):
         key = (r[0], r[1])
-        if key not in wanted:
+        if key not in airports:
             continue
         nights = (date.fromisoformat(r[3]) - date.fromisoformat(r[2])).days
         if not config.GF_NIGHTS[0] <= nights <= config.GF_NIGHTS[1]:
@@ -181,10 +189,12 @@ def discovery(conn, routes, today, n):
     for key, fares in by_route.items():
         prices = sorted(f[2] for f in fares)
         median = prices[len(prices) // 2]
-        best = min((f for f in fares if (*key, f[0], f[1]) not in seen),
+        # One airport per city route per run: the one Google has seen least.
+        route = min(airports[key], key=lambda r: (looked.get(r, 0), r))
+        best = min((f for f in fares if (*route, f[0], f[1]) not in seen),
                    key=lambda f: f[2], default=None)
         if best:
-            picks.append((best[2] / median, (*key, best[0], best[1])))
+            picks.append((best[2] / median, (*route, best[0], best[1])))
     picks.sort()
     return [p[1] for p in picks[:n]]
 
@@ -270,7 +280,8 @@ def tp_typical(conn, origin, destination, depart_date, today):
         "SELECT price FROM fare_observation WHERE origin = ? AND destination = ?"
         " AND depart_month = ? AND return_date IS NOT NULL"
         " AND substr(fetched_at, 1, 10) >= ?",
-        (origin, destination, depart_date[:7], since)))
+        (config.TP_CITY.get(origin, origin), destination, depart_date[:7],
+         since)))
     if len(prices) < config.GF_TP_MIN_FARES:
         return None
     return prices[len(prices) // 2]
