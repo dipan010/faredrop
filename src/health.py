@@ -17,8 +17,8 @@ the next run instead, which launchd starts on wake.
 Alerts go to a macOS notification, and by email too when SMTP is set up.
 Neither is required; the log line is always written.
 
-    python3 health.py              # check, alert if needed
-    python3 health.py --quiet      # check and log only, no alerts
+    python3 src/health.py              # check, alert if needed
+    python3 src/health.py --quiet      # check and log only, no alerts
 """
 
 import subprocess

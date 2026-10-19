@@ -8,8 +8,12 @@ snapshots on the `data` release: no token, nothing written to GitHub. If the
 newest snapshot is older than STALE_HOURS, it alerts (macOS notification and
 email), once per UTC day.
 
-    python3 watchdog.py
+    python3 laptop/watchdog.py
 """
+
+import sys  # noqa: E402 - the pipeline's modules live in src/
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import json
 import sys

@@ -12,8 +12,8 @@ runs this before collecting. Safe to run every time:
 * added_at is stamped by the database, so health.py judges a new route only
   from the day it arrived.
 
-    python3 routes.py            # add any routes not yet in the table
-    python3 routes.py --dry-run
+    python3 src/routes.py            # add any routes not yet in the table
+    python3 src/routes.py --dry-run
 """
 
 import json
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import db
 
-ROUTES_FILE = Path(__file__).with_name("routes.json")
+ROUTES_FILE = Path(__file__).resolve().parents[1] / "routes" / "routes.json"
 
 
 def wanted(path=ROUTES_FILE):

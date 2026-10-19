@@ -1,8 +1,13 @@
 """Token-free checks: parser shape, and that collect -> baseline -> detect
 -> digest actually chains. Uses a throwaway DB, never data/faredrop.db.
 
-Run: python3 test_pipeline.py
+Run: python3 tests/test_pipeline.py
 """
+
+import sys  # noqa: E402 - the pipeline's modules live in src/
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "laptop"))
 
 import json
 import random

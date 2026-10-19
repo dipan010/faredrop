@@ -22,7 +22,7 @@ jobs:
       - run: pip install -r requirements-verify.txt
       - name: Three lookups, a pause between each
         run: |
-          python3 - <<'EOF'
+          PYTHONPATH=src python3 - <<'EOF'
           import time
           from datetime import date, timedelta
           import verify

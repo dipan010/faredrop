@@ -49,8 +49,8 @@ So this is not automatically the better policy, and collect.py still walks
 uniformly by default. `--scheduled` is for when the budget is genuinely
 short, and even then, watching fewer destinations is the more legible fix.
 
-    python3 schedule.py            # today's plan and why
-    python3 schedule.py --budget 60
+    python3 src/schedule.py            # today's plan and why
+    python3 src/schedule.py --budget 60
 """
 
 import argparse

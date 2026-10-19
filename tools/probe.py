@@ -4,9 +4,13 @@ against what the API actually returns rather than what the docs claim.
 Open question this answers: whether /v2/prices/month-matrix is one-way or
 round-trip, and which endpoint gives the densest per-day history in one call.
 
-    python probe.py            # uses config.ORIGINS[0] -> DXB
-    python probe.py BLR SIN
+    python tools/probe.py            # uses config.ORIGINS[0] -> DXB
+    python tools/probe.py BLR SIN
 """
+
+import sys  # noqa: E402 - the pipeline's modules live in src/
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import json
 import sys

@@ -18,10 +18,10 @@ encrypted snapshots attached to a prerelease tagged `data` in this repo:
 The key travels as an environment variable (openssl -pass env:...), never on
 a command line, where other processes could read it.
 
-    python3 dbstore.py pull           # newest usable snapshot -> data/faredrop.db
-    python3 dbstore.py push           # data/faredrop.db -> new snapshot, prune
-    python3 dbstore.py push --seed    # first upload: no pull to compare against
-    python3 dbstore.py latest         # name of the newest snapshot
+    python3 src/dbstore.py pull           # newest usable snapshot -> data/faredrop.db
+    python3 src/dbstore.py push           # data/faredrop.db -> new snapshot, prune
+    python3 src/dbstore.py push --seed    # first upload: no pull to compare against
+    python3 src/dbstore.py latest         # name of the newest snapshot
 """
 
 import os

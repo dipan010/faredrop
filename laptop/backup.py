@@ -19,9 +19,13 @@ or a test (seen 2026-10-02: "Operation not permitted"). So a snapshot that
 can't be replaced is saved under a fallback name, and one that can't be
 pruned is reported and left, rather than failing the backup.
 
-    python3 backup.py            # snapshot today, prune old ones
-    python3 backup.py --list
+    python3 laptop/backup.py            # snapshot today, prune old ones
+    python3 laptop/backup.py --list
 """
+
+import sys  # noqa: E402 - the pipeline's modules live in src/
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import os
 import sqlite3

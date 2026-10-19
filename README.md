@@ -20,21 +20,21 @@ the filters and the alerts get built while it accumulates.
 
 1. Get a free token at https://www.travelpayouts.com/developers/api
 2. `export TRAVEL_PAYOUTS_API_KEY=your_token_here`
-3. Set your home airport in `config.py` (`ORIGINS`)
+3. Set your home airport in `src/config.py` (`ORIGINS`)
 
 ```sh
-python3 refdata.py sync           # reference tables (no token needed)
-python3 probe.py BLR DXB          # dump raw payloads, inspect ./raw/
-python3 refdata.py destinations   # seed the route list from real demand
-python3 collect.py --limit 3      # smoke test, then check the field mapping:
-python3 collect.py --show-keys    # <- do this before trusting any number
+python3 src/refdata.py sync           # reference tables (no token needed)
+python3 tools/probe.py BLR DXB          # dump raw payloads, inspect ./raw/
+python3 src/refdata.py destinations   # seed the route list from real demand
+python3 src/collect.py --limit 3      # smoke test, then check the field mapping:
+python3 src/collect.py --show-keys    # <- do this before trusting any number
 ```
 
 **Confirm the parser once.** `collect._parse` is the only place API field
 names appear, and it was written against the documented shape, not an
 observed one. `--show-keys` prints what actually came back; fix the mapping
 there if it disagrees. Nothing is lost while it's wrong -- raw payloads are
-committed before parsing, so `python3 collect.py --reparse` replays a
+committed before parsing, so `python3 src/collect.py --reparse` replays a
 corrected parser over everything already stored. It's idempotent: each
 payload is reparsed with the timestamp saved next to it, so re-running adds
 nothing.
@@ -42,169 +42,57 @@ nothing.
 ## Daily
 
 ```sh
-python3 collect.py                # walk routes, write observations
-python3 baseline.py               # recompute distributions
-python3 detect.py                 # flag drops + mistake-fare candidates
-.venv/bin/python verify.py        # optional: re-check them on Google Flights
-python3 digest.py                 # what's worth looking at today
-python3 notify.py                 # email anything you haven't been told about
+python3 src/collect.py                # walk routes, write observations
+python3 src/baseline.py               # recompute distributions
+python3 src/detect.py                 # flag drops + mistake-fare candidates
+.venv/bin/python src/verify.py        # optional: re-check them on Google Flights
+python3 src/digest.py                 # what's worth looking at today
+python3 src/notify.py                 # email anything you haven't been told about
 ```
 
-## Files
+## Layout
+
+Run everything from the repo root (paths like `data/` are relative to it).
+
+| Folder | What's in it |
+|---|---|
+| `src/` | The pipeline. Every script here runs on GitHub Actions. |
+| `routes/` | `routes.json` (Travelpayouts routes, add-only) and `gf_routes.json` (Google destinations). Hand-edited. |
+| `tests/` | `test_pipeline.py`: token-free checks, run by CI on Python 3.9. |
+| `tools/` | One-offs: `probe.py` (dump raw payloads), `smoke.py` (one live call, CI), `simulate.py` (synthetic history). |
+| `laptop/` | The laptop's launchd job: `daily.sh`, its plist, `watchdog.py`, `backup.py`. Watchdog only since 2026-10-12. |
+| `docs/` | `history.md`: the dated log of findings and decisions. |
+| `data/`, `raw/`, `backups/`, `logs/` | Local and git-ignored: the database, payload dumps, snapshots, launchd logs. |
+
+**`src/`, in pipeline order**
 
 | File | Role |
 |---|---|
-| `config.py` | Routes, quality bar, thresholds. Hand-edited. |
-| `api.py` | Travelpayouts client. https, INR, gzip, raw persistence. |
+| `config.py` | Routes, quality bar, thresholds, budgets. Hand-edited. |
 | `db.py` | Schema. Raw payloads kept verbatim. |
+| `api.py` | Travelpayouts client. https, INR, gzip, raw persistence. |
 | `refdata.py` | Airport/airline tables; seeds the route list. |
-| `probe.py` | Dumps every candidate endpoint for inspection. |
+| `routes.py` | Adds the routes in `routes/routes.json` to the database; add-only. |
 | `collect.py` | The daily walk. The only thing that must not miss a day. |
 | `schedule.py` | Where the daily call budget goes, when it can't cover everything. |
 | `baseline.py` | The price model: distinct quotes, booking horizon, log space. |
 | `detect.py` | Flags fares below the baseline. |
-| `digest.py` | The review queue -- deals plus how ready the data is. |
-| `verify.py` | Re-checks pending deals on Google Flights before they're emailed. Optional. |
-| `notify.py` | Emails deals you haven't been told about. Delivery, once. |
-| `backup.py` | Dated, WAL-safe DB snapshot after each collect, locally and in iCloud Drive. |
+| `verify.py` | Re-checks Travelpayouts deals on Google Flights before they're emailed. |
 | `gfcollect.py` | Google Flights deals, judged by Google's own typical range. The deal source. |
-| `routes.py` | Adds the routes in `routes.json` to the database; add-only. |
+| `digest.py` | The review queue: deals plus how ready the data is. |
+| `notify.py` | Emails deals you haven't been told about. Delivery, once. |
+| `health.py` | Alarm (email, macOS notification) when a day of collection is missed. |
 | `dbstore.py` | Encrypted history snapshots on the `data` release, for the Actions collector. |
-| `watchdog.py` | From the laptop: alerts if the Actions collector stops producing snapshots. |
-| `health.py` | Alarm (macOS notification, email if set up) when a day of collection is missed. |
-| `simulate.py` | Synthetic history, for exercising the model with no data. |
-| `test_pipeline.py` | Token-free checks of parse -> baseline -> detect. |
-
-## How a deal is decided
-
-Everything hinges on predicting what a route-month *should* cost, then asking
-how far below it a fare sits.
-
-**Count distinct quotes, not rows.** The feed repeats the same fare day after
-day, so thirty rows can be four fares. Counting the repeats overstates how
-much history exists and collapses the spread estimate -- which is the exact
-number the outlier score divides by. Rows stay verbatim as the audit trail;
-they are collapsed on read, in `baseline.distinct_quotes`.
-
-**A history, not one day's spread.** A route-month needs 12 distinct quotes
-*and* data from at least `MIN_HISTORY_DAYS` (7) different collection days.
-The calendar endpoint returns a whole month of departure dates in one call,
-so one day can already hold 12 quotes. "Normal" built from that is only the
-spread across departure dates, and a "deal" against it only means "the
-cheapest date this month". That is exactly what fired on 2026-10-06, the
-first day of the wider collection. Every recompute starts clean, so a cell
-that stops qualifying loses its baseline.
-
-**Google Flights must confirm it.** Travelpayouts often reports a fare from
-a Russian-market seller that an Indian traveller can't buy. The first three
-deals (2026-10-12) were exactly that, 30–115% under Google Flights. So every
-deal is looked up on Google Flights for the same dates, and only deals whose
-live price still clears the gates are emailed.
-
-**The quality bar filters.** A fare with more than `MAX_STOPS` (1) stops is
-never a deal, however cheap; it is not merely flagged. Deals are emailed
-only for departure cities in `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI, and
-GOX, Goa's Mopa airport, since 2026-10-19).
-Every other origin is still collected and still shows in `digest.py`.
-
-**Condition on how far ahead you are booking.** A fare 200 days out and one
-10 days out are different distributions; pooled, the median is a blend and a
-fixed ratio is wrong against both. Four coarse buckets, not a fitted curve --
-at roughly one quote per cell per day a smooth booking curve is unfittable
-for months, whereas a bucket that never fills falls back to the route's own
-level and costs nothing.
-
-**Work in log space.** Fares are right-skewed and move multiplicatively. In
-logs, "20% below normal" is one distance on a ₹15k route and a ₹150k one, so
-a single threshold serves both.
-
-    log price  =  route level  +  horizon offset  +  cell offset  +  residual
-
-A route's horizon offset is trusted in proportion to the data behind it --
-`n/(n+k)` of the say, the rest from that bucket pooled across all routes,
-itself damped toward zero by the same rule. Both shrinkages bias the offset
-low, so the horizon is deliberately *under*-corrected: fewer false deals, at
-the cost of missing some real last-minute ones.
-
-Then three gates, and they are not equally trustworthy:
-
-| Gate | What it is |
-|---|---|
-| Ratio | Below `DEAL_RATIO` of prediction. Scale-free. |
-| Absolute saving | At least `MIN_ABS_SAVING` below it. The only gate that needs no calibrated scale. |
-| Outlier score | How far into the left tail, in robust log units. **Ranks, does not classify.** |
-
-Only fares fetched within `DETECT_WINDOW_DAYS` are candidates. A fare that
-was cheap in March is history, not something anyone can book, and without
-that bound every run re-walks the whole table and re-serves it as today's
-deal. It still counts toward the baseline -- it just isn't offered.
-
-`kind='mistake'` means "look at this one first". Every price in the feed is a
-minimum over a ~48h search window, and the left tail of a distribution of
-minima is not the tail the score's arithmetic assumes. Logs fix the skew, not
-that.
-
-**The thresholds are placeholders.** They have never been fitted -- there are
-no observations yet. `simulate.py` shows the code degrades sanely on sparse
-input; it cannot tell you the right numbers, because measuring precision on a
-generator the model is built to invert proves only that it inverts it.
-
-## Spending a limited budget
-
-40 destinations x 6 months is 240 cells, so a uniform daily walk costs 240
-calls. If that's more than your tier allows, **watch fewer destinations
-first** -- `MAX_DESTINATIONS` is the same lever as a scheduler and much
-easier to reason about.
-
-If you want all 40 watched anyway, `collect.py --scheduled` allocates a fixed
-budget instead. The argument is a threshold effect: below `MIN_OBSERVATIONS`
-a cell has no baseline, so it can produce no deal at any price. 240 cells at
-n=6 are worth zero; 40 at n=12 are worth everything. So mature cells are
-served first, and whatever's left goes to the cells *closest* to maturity
-rather than the neediest -- finishing a cell at n=11 buys a working baseline,
-starting a fifth at n=0 buys nothing.
-
-Measured against a plain round-robin, 24 cells over 30 days:
-
-| calls/day | round-robin matures | cohort matures |
-|---:|---:|---:|
-| 1 | 0 | 3 |
-| 2 | 0 | 9 |
-| 3 | 16 | 16 |
-| 4 | 24 | 18 |
-| 6 | 24 | 24 |
-| 12 | 24 (360 calls) | 24 (271 calls) |
-
-**Read this table for its shape, not its numbers.** Every figure in it falls
-out of `simulate.py`'s invented yield -- three quotes per call, each lingering
-one to four days. Change that and the crossover moves. What the table
-establishes is that *two regimes exist* and which one you are in depends on
-whether the budget can mature every cell; it does not establish that 3
-calls/day is anyone's crossover. `python3 schedule.py` computes the boundary
-from your own history once there is any.
-
-Only one regime wants a scheduler. When the budget can't mature everything,
-round-robin matures *nothing* -- every cell stalls just short of the line --
-and cohorting is the difference between a working system and no system. When
-the budget is comfortable, round-robin is as good and simpler; at 12/day the
-only gain is a quarter of the calls back. `python3 schedule.py` tells you
-which regime you're in. `collect.py` still walks uniformly by default.
-
-One thing that had to be fixed to make this work at all: capping maintenance.
-Left uncapped the policy is absorbing -- once enough cells mature, re-polling
-them eats the whole budget and no new cell is ever opened again. That showed
-up in simulation as the cohort locking at 9 cells while round-robin reached
-16. `EXPLORE_RESERVE` is the floor that prevents it.
 
 ## Running it daily
 
 Collection is the only step that can't be caught up later, so it shouldn't
-depend on you remembering. `daily.sh` runs collect -> baseline -> detect ->
+depend on you remembering. `laptop/daily.sh` runs collect -> baseline -> detect ->
 digest; the launchd job runs it at 07:15.
 
 ```sh
 echo 'export TRAVEL_PAYOUTS_API_KEY=...' > ~/.faredrop.env && chmod 600 ~/.faredrop.env
-cp com.dipanghosh.faredrop.plist ~/Library/LaunchAgents/
+cp laptop/com.dipanghosh.faredrop.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.dipanghosh.faredrop.plist
 ```
 
@@ -315,7 +203,7 @@ a per-month one. `fare_observation.source` says which, so the model can treat
 them apart if pooling them skews it.
 
 **Routes** cover 21 Indian origins (292 international routes) and live in
-`routes.json`. That file was built from a survey of which routes this source
+`routes/routes.json`. That file was built from a survey of which routes this source
 actually has fares for; the GitHub workflow adds any missing ones each run
 (`routes.py`, add-only). The data is Aviasales' search cache, and its users
 are mostly Russian and CIS. So Delhi, Goa and Mumbai are rich, Moscow and
@@ -331,7 +219,7 @@ about 10% of Google, but its cheapest outliers unreliable, and those are
 exactly what deal detection picks.
 
 - **Watched:** `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI, GOX) × the 25
-  destinations in `gf_routes.json`. Any trip of 2–21 nights departing 7–180
+  destinations in `routes/gf_routes.json`. Any trip of 2–21 nights departing 7–180
   days out.
 - **Which trips get looked up:** most come from *discovery*, recent
   Travelpayouts fares that look cheap for their route. The rest

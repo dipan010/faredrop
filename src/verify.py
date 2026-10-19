@@ -22,8 +22,8 @@ pause between them, and the first failure ends the run instead of retrying.
 It runs in its own venv (requirements-verify.txt); without one, daily.sh
 doesn't call it and every alert goes out marked not re-checked.
 
-    .venv/bin/python verify.py --dry-run    # look up, print, store nothing
-    .venv/bin/python verify.py
+    .venv/bin/python src/verify.py --dry-run    # look up, print, store nothing
+    .venv/bin/python src/verify.py
 """
 
 import argparse

@@ -16,7 +16,7 @@ TOKEN = os.environ.get("TRAVEL_PAYOUTS_API_KEY", "")
 
 ORIGINS = ["BLR"]          # <- change to your home airport
 
-# Seeded by `python refdata.py destinations`, which asks the API which
+# Seeded by `python src/refdata.py destinations`, which asks the API which
 # destinations are actually popular from each origin. Hand-edit freely.
 DESTINATIONS_FILE = "data/destinations.json"
 
@@ -50,7 +50,7 @@ MAX_STOPS = 1              # Zomunk's bar: non-stop or one-stop only. Fares
 # Google Flights as the deal source (gfcollect.py), chosen 2026-10-12 after
 # Travelpayouts' cheapest fares turned out to be largely Russian-market prices.
 # Destinations live in gf_routes.json; origins are ALERT_ORIGINS.
-GF_ROUTES_FILE = "gf_routes.json"
+GF_ROUTES_FILE = "routes/gf_routes.json"   # from the repo root
 GF_HORIZON_DAYS = (7, 180)        # departures this far ahead
 GF_NIGHTS = (2, 21)               # trip lengths considered, any in between
 GF_EXPLORE_SHARE = 0.3            # of lookups spent on random trips

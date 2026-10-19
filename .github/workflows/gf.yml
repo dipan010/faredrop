@@ -46,17 +46,17 @@ jobs:
       # Fails the job before anything runs on an empty database.
       - name: Restore the history
         id: pull
-        run: python3 dbstore.py pull
+        run: python3 src/dbstore.py pull
 
       - name: Google Flights deals
         timeout-minutes: 20
         continue-on-error: true
         run: |
-          python3 gfcollect.py || echo "::warning::gfcollect failed"
-          python3 notify.py || echo "::warning::notify failed"
+          python3 src/gfcollect.py || echo "::warning::gfcollect failed"
+          python3 src/notify.py || echo "::warning::notify failed"
 
       # Only when this run made Google requests: after the day's budget is
       # spent, the remaining hourly runs store nothing.
       - name: Store the history
         if: always() && steps.pull.outcome == 'success' && hashFiles('data/.gf_changed') != ''
-        run: python3 dbstore.py push
+        run: python3 src/dbstore.py push

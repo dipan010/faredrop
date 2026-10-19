@@ -13,9 +13,13 @@ generator. Real fares are minima over a 48h window, gappy, and correlated
 across days in ways nothing below reproduces. Any threshold "validated" here
 is a placeholder wearing a lab coat.
 
-    python3 simulate.py              # build a scratch DB and report
-    python3 simulate.py --days 60    # longer synthetic run
+    python3 tools/simulate.py              # build a scratch DB and report
+    python3 tools/simulate.py --days 60    # longer synthetic run
 """
+
+import sys  # noqa: E402 - the pipeline's modules live in src/
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import argparse
 import json

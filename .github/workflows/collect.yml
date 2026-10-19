@@ -79,7 +79,7 @@ jobs:
       - name: Restore the history
         id: pull
         if: steps.ready.outputs.ok == 'true'
-        run: python3 dbstore.py pull
+        run: python3 src/dbstore.py pull
 
       # Routes live in routes.json in the repo, not only in the database, so
       # adding a route never means editing the encrypted history by hand.
@@ -88,7 +88,7 @@ jobs:
       - name: Sync the route list
         if: steps.ready.outputs.ok == 'true'
         continue-on-error: true
-        run: python3 routes.py
+        run: python3 src/routes.py
 
       # Same order and the same "a failing step never stops the next" rule as
       # daily.sh. Collection first: it is the only step that can't be redone.
@@ -97,13 +97,13 @@ jobs:
         timeout-minutes: 35
         continue-on-error: true
         run: |
-          python3 collect.py || echo "::warning::collect failed (rc=$?) -- history may have a gap"
-          python3 baseline.py || echo "::warning::baseline failed"
-          python3 detect.py || echo "::warning::detect failed"
-          python3 verify.py || echo "::warning::verify failed -- alerts go out unchecked"
-          python3 digest.py || true
-          python3 notify.py || echo "::warning::notify failed"
-          python3 health.py || echo "::warning::health failed"
+          python3 src/collect.py || echo "::warning::collect failed (rc=$?) -- history may have a gap"
+          python3 src/baseline.py || echo "::warning::baseline failed"
+          python3 src/detect.py || echo "::warning::detect failed"
+          python3 src/verify.py || echo "::warning::verify failed -- alerts go out unchecked"
+          python3 src/digest.py || true
+          python3 src/notify.py || echo "::warning::notify failed"
+          python3 src/health.py || echo "::warning::health failed"
 
       # The deal source since 2026-10-12: Google Flights, judged by Google's
       # own typical range (gfcollect.py), within one small daily budget of
@@ -115,11 +115,11 @@ jobs:
         timeout-minutes: 15
         continue-on-error: true
         run: |
-          python3 gfcollect.py || echo "::warning::gfcollect failed"
-          python3 notify.py || echo "::warning::notify failed"
+          python3 src/gfcollect.py || echo "::warning::gfcollect failed"
+          python3 src/notify.py || echo "::warning::notify failed"
 
       # Runs even if the pipeline failed, so a partial day's fares are kept --
       # but only when the restore worked, so an empty database is never stored.
       - name: Store the history
         if: always() && steps.pull.outcome == 'success'
-        run: python3 dbstore.py push
+        run: python3 src/dbstore.py push

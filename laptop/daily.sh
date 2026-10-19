@@ -7,7 +7,7 @@
 # existed. baseline and detect are pure recomputation over the database and
 # can be re-run at any time.
 set -u
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/.."    # the repo root: data/, logs/, .venv/ live there
 
 # Hold off idle sleep until this script exits. On 2026-10-02 the Mac dozed
 # repeatedly mid-run and one collection took four hours. Started from in here,
@@ -32,14 +32,14 @@ PY=$(command -v python3)
 # (e.g. if GitHub Actions goes away); the database in data/ is kept as it was.
 if [ "${LAPTOP_COLLECTS:-0}" != "1" ]; then
   echo "=== $(date -u +%FT%TZ) faredrop watchdog"
-  "$PY" watchdog.py || echo "watchdog failed (rc=$?)" >&2
+  "$PY" laptop/watchdog.py || echo "watchdog failed (rc=$?)" >&2
   exit 0
 fi
 
 if [ -z "${TRAVEL_PAYOUTS_API_KEY:-}" ]; then
   echo "$(date -u +%FT%TZ)  FATAL: TRAVEL_PAYOUTS_API_KEY not set" >&2
   echo "  put it in ~/.faredrop.env as: export TRAVEL_PAYOUTS_API_KEY=..." >&2
-  "$PY" health.py  # a run that can't collect must still raise the alarm
+  "$PY" src/health.py  # a run that can't collect must still raise the alarm
   exit 78          # EX_CONFIG -- launchd won't thrash-retry on this
 fi
 echo "=== $(date -u +%FT%TZ) faredrop daily"
@@ -63,26 +63,26 @@ if [ "$waited" -gt 0 ]; then echo "waited ${waited}s for the network"; fi
 
 # Collection first and separately: if it fails we still want to know, but a
 # modelling error must never stop tomorrow's collection from being attempted.
-"$PY" collect.py || echo "collect failed (rc=$?) -- history may have a gap" >&2
+"$PY" src/collect.py || echo "collect failed (rc=$?) -- history may have a gap" >&2
 # Snapshot straight after collecting: today's fares are the irreplaceable part.
-"$PY" backup.py || echo "backup failed (rc=$?)" >&2
-"$PY" baseline.py
-"$PY" detect.py
+"$PY" laptop/backup.py || echo "backup failed (rc=$?)" >&2
+"$PY" src/baseline.py
+"$PY" src/detect.py
 # The live re-check needs a newer Python and a scraper the rest doesn't, so
 # it gets its own venv. Missing or failing, alerts still go out, unchecked.
 if [ -x .venv/bin/python ]; then
-  .venv/bin/python verify.py || echo "verify failed (rc=$?) -- alerts go out unchecked" >&2
+  .venv/bin/python src/verify.py || echo "verify failed (rc=$?) -- alerts go out unchecked" >&2
 fi
-"$PY" digest.py
+"$PY" src/digest.py
 
 # Delivery last, and never fatal: a mail misconfiguration must not make the
 # run look like collection failed. notify.py exits 0 when SMTP is unset and
 # stamps deals only on a successful send, so a bad day retries tomorrow.
-"$PY" notify.py
+"$PY" src/notify.py
 
 # Last, so it judges what actually reached the database today.
-"$PY" health.py
+"$PY" src/health.py
 
 # The GitHub Actions collector can stop without telling anyone (GitHub
 # disables idle schedules silently); this notices from outside it.
-"$PY" watchdog.py || echo "watchdog failed (rc=$?)" >&2
+"$PY" laptop/watchdog.py || echo "watchdog failed (rc=$?)" >&2

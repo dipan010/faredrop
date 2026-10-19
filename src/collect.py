@@ -14,11 +14,11 @@ That constraint shapes three decisions here:
   walk is ~240 calls; a Ctrl-C at call 200 must not roll back the first 199.
 * One bad route is logged and stepped over, never allowed to abort the walk.
 
-    python3 collect.py                 # the daily run
-    python3 collect.py --limit 5       # first 5 route-months, for a smoke test
-    python3 collect.py --dry-run       # walk the plan, make no calls
-    python3 collect.py --show-keys     # what did the API actually send back?
-    python3 collect.py --reparse       # re-run a corrected parser over stored raw
+    python3 src/collect.py                 # the daily run
+    python3 src/collect.py --limit 5       # first 5 route-months, for a smoke test
+    python3 src/collect.py --dry-run       # walk the plan, make no calls
+    python3 src/collect.py --show-keys     # what did the API actually send back?
+    python3 src/collect.py --reparse       # re-run a corrected parser over stored raw
 """
 
 import argparse
@@ -281,8 +281,8 @@ def run(conn, limit=None, dry_run=False, pause=PAUSE_SEC, plan=None,
         sys.exit(
             "No active routes.\n"
             "  Seed them from real demand first:\n"
-            "    python3 refdata.py sync\n"
-            "    python3 refdata.py destinations"
+            "    python3 src/refdata.py sync\n"
+            "    python3 src/refdata.py destinations"
         )
 
     if plan is None:

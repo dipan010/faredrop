@@ -17,8 +17,8 @@ Two rules hold this together:
 Repeat suppression lives in detect.py, not here. By the time a deal reaches
 this module it is already known to be new.
 
-    python3 notify.py --dry-run     # print the email instead of sending it
-    python3 notify.py
+    python3 src/notify.py --dry-run     # print the email instead of sending it
+    python3 src/notify.py
 """
 
 import argparse

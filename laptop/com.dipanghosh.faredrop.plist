@@ -8,7 +8,7 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/dipanghosh/Projects/ideas/faredrop/daily.sh</string>
+    <string>/Users/dipanghosh/Projects/ideas/faredrop/laptop/daily.sh</string>
   </array>
 
   <key>WorkingDirectory</key>

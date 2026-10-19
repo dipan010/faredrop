@@ -5,8 +5,12 @@ is revoked or the response shape drifts. This makes a single request on a
 busy route, parses it with the collector's own parser, and fails loudly if
 either breaks. It writes nothing: no database, no raw file.
 
-    python3 smoke.py
+    python3 tools/smoke.py
 """
+
+import sys  # noqa: E402 - the pipeline's modules live in src/
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 import sys
 

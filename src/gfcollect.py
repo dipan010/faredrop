@@ -29,8 +29,8 @@ Each run, within a small daily budget of Google requests:
 The first failed fetch or unreadable page ends the run: it is likelier a
 block than bad luck, and pressing on makes a block stick.
 
-    python3 gfcollect.py             # one run
-    python3 gfcollect.py --dry-run   # show the trips it would look up
+    python3 src/gfcollect.py             # one run
+    python3 src/gfcollect.py --dry-run   # show the trips it would look up
 """
 
 import argparse
@@ -53,7 +53,8 @@ NIGHT_CHOICES = (2, 3, 4, 5, 7, 10, 14)
 # --- what to watch -------------------------------------------------------
 
 def destinations(path=None):
-    path = Path(path or Path(__file__).with_name(config.GF_ROUTES_FILE))
+    path = Path(path or Path(__file__).resolve().parents[1]
+                / config.GF_ROUTES_FILE)
     return json.loads(path.read_text())["destinations"]
 
 

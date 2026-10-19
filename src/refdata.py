@@ -1,7 +1,7 @@
 """Reference tables and route-list seeding.
 
-`python refdata.py sync`         -> download airports/airlines/cities (no token)
-`python refdata.py destinations` -> ask the API what's popular from each origin
+`python src/refdata.py sync`         -> download airports/airlines/cities (no token)
+`python src/refdata.py destinations` -> ask the API what's popular from each origin
                                     and write data/destinations.json (needs token)
 """
 
