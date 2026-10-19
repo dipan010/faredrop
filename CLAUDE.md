@@ -1,12 +1,13 @@
 # faredrop — Claude Code context
 
-Self-hosted fare-drop watcher: polls Travelpayouts daily, builds a per-route price
-distribution, flags fares well below it, emails new deals once.
+Personal fare-deal alert for Indian cities, run free on GitHub Actions: collects a
+Travelpayouts price history (discovery, sanity checks), finds deals on Google Flights
+judged by Google's own typical range, confirms them in a later run, emails each once.
 
 ## Read first
 
-1. `STATUS.md` — Phase 1 (get the daily collector running) is urgent.
-2. `README.md` — setup, the daily pipeline, how a deal is decided.
+1. `STATUS.md` — start with "Handoff": current state, results, next actions in order.
+2. `README.md` — setup, the daily pipeline, how a deal is decided (Google Flights).
 
 ## Commands
 

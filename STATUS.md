@@ -1,24 +1,37 @@
 # faredrop — Status
 
-Last reviewed: 2026-10-16
+Last reviewed: 2026-10-19 (handoff record; detailed history follows below)
 
 | Built | Documented | Hosted | Posted |
 |---|---|---|---|
-| ✅ Collector → baseline → detect → verify → digest → notify → health pipeline, tests, CI | ✅ README (setup, daily flow, how a deal is decided, Actions, recovery) | ✅ GitHub Actions every 2 h since 2026-10-06 (4×/day from 2026-10-04) (encrypted history on the `data` release); laptop collects in parallel until 2026-10-10 | ❌ |
+| ✅ Travelpayouts collector (history) + Google Flights deal finder (`gfcollect.py`) + confirm/notify/health, 184 token-free checks, CI | ✅ README, this file, CLAUDE.md rules | ✅ GitHub Actions (`collect.yml` every 2 h, `gf.yml` hourly); encrypted history on the `data` release; laptop is watchdog only | ❌ |
 
-## Where it stands
+## Handoff — where the project is (2026-10-19)
 
-- Self-hosted fare-drop watcher on the Travelpayouts API, at https://github.com/dipan010/faredrop (public). Everything is committed and pushed.
-- README: "the price history is the product". Travelpayouts keeps only 7 days, so every day nothing collects is history lost for good.
-- **Collection days so far (UTC):** Oct 1 ✅ · Oct 2 ✅ 138/138 · **Oct 3 ❌ lost** (laptop asleep with no network) · Oct 4 ✅ 138/138 (completed by hand) · Oct 5 ✅ 138/138 on both GitHub and the laptop · Oct 6–11 ✅ 440/440 every day on GitHub (laptop 161/161). Each day is 138 route-months.
-- **Collectors** (each with its own database, never merged):
-  - **GitHub Actions** (`collect.yml`): the official history. Runs every 2 hours (:47 past even UTC hours), restoring from and storing to AES-encrypted snapshots on the `data` prerelease (`dbstore.py`). Collected Oct 5 completely (138/138). Every run has been green, but GitHub's schedule is unpunctual: in the first day, 3 of 5 slots ran, 2.5–6 h late, and one never ran. So the schedule went from 4×/day to every 2 h on 2026-10-06.
-  - **Laptop** (launchd, `daily.sh`): **watchdog only since 2026-10-12.** At 07:15/13:15/19:15/23:15 IST it runs `watchdog.py`, which alerts if GitHub's newest snapshot is >30h old. No collection, backups or emails. Its own DB (BLR, Oct 1–11) is kept in `data/`; `LAPTOP_COLLECTS=1` in `~/.faredrop.env` restores the full pipeline.
-- **Secrets:** repository secrets `TRAVEL_PAYOUTS_API_KEY`, `FAREDROP_DB_KEY`, `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_TO`, plus the same values in `~/.faredrop.env` (chmod 600). `FAREDROP_DB_KEY` is also in the user's password manager (confirmed 2026-10-05). It is the only way to decrypt the history.
-- **Wider collection (2026-10-06):** GitHub collects 302 routes from 21 Indian origins (`routes.json`; the laptop stays on its 23 BLR routes). Every route gets one `/v1/prices/calendar` call; the original 23 BLR routes also keep the per-month `/cheap` walk. That's ~440 calls and ~10 min per complete day. Survey: Delhi 666 cached fares, Goa 496, Mumbai 305, BLR 112. Calendar cells are expected from `CALENDAR_SINCE` = 2026-10-06.
-- Routes (laptop) are international only: 23 from BLR. 17 are seeded from `/v1/city-directions` (Aviasales' user base, so it includes MOW and AER); `config.EXTRA_DESTINATIONS` adds SIN, KUL, LON, PAR, FRA and AMS. The 13 domestic routes are inactive. Europe is thin in this feed. To change routes, edit `EXTRA_DESTINATIONS` and run `refdata.py destinations`; the collector walks the `route` table.
-- Parser verified against live payloads: stops come from the offer's key, and the request doesn't pin the return month.
-- **Never upload the laptop's DB to the `data` release again.** It would become the newest snapshot and drop whatever GitHub collected that the laptop didn't.
+**What it is.** A personal fare-deal alert in the style of Zomunk, for Indian departure cities, run free on GitHub Actions. Repo: https://github.com/dipan010/faredrop (public). Email alerts go to the owner. Deals can be rated on a private review page: https://claude.ai/artifact/FKn5RLNgx8sxmbBpLoYZc4
+
+**How it works now**
+1. **History (Travelpayouts, `collect.yml`, every 2 h, idempotent per UTC day):** 302 international routes from 21 Indian origins (`routes.json`, added add-only by `routes.py`). One `/v1/prices/calendar` call per route, plus the per-month `/v1/prices/cheap` walk for the original 23 BLR routes: 440 cells a day. Complete every day since Oct 4 (Oct 3 was lost on the laptop era). 6,737 raw responses and 145 route-month baselines as of Oct 19. Used for discovery and as a sanity check, **never as a judge of a deal**: its cheapest fares are often Russian-market seller prices (see "Finding 2026-10-12").
+2. **Deals (Google Flights, `gfcollect.py`, `gf.yml` hourly plus a step in `collect.yml`):** watches `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI) × 25 destinations (`gf_routes.json`), any 2–21-night trip 7–180 days out. 25% of lookups explore the 16 other origins for review only (never emailed). An unfiltered search reads Google's own price insights (usual price, typical range, ~62-day history). Candidate = fare ≤ bottom of the typical range and ≥ ₹4,000 under usual. Confirmed **in a later run** with a filtered search (≤1 stop, no self-transfers): the fare must reproduce within 5%, and Google's usual must fit Travelpayouts' typical (0.6–1.6×) with the deal below it. Only then is it a deal; email goes out only for `ALERT_ORIGINS`.
+3. **Google budget:** 40 requests a day shared with the re-check (`verify.py`, which confirms Travelpayouts deals from alert cities only). Spaced ~40 s; one retry 90 s after a refusal; a refused confirmation is owed to the next run; a page that prices nothing is recorded and skipped.
+4. **Storage and safety:** history = AES-256 snapshots on the `data` prerelease (`dbstore.py`: never restores empty, never uploads a smaller DB, newest 12 plus one a day kept). Key `FAREDROP_DB_KEY` is in `~/.faredrop.env`, the repo secret, and the user's password manager. Secrets in the repo: `TRAVEL_PAYOUTS_API_KEY`, `FAREDROP_DB_KEY`, `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_TO`. Alerts: `health.py` (per-day coverage, once), `watchdog.py` on the laptop (alerts if snapshots go >30 h stale).
+
+**Results so far**
+- Google since the Oct 16 fix: uses the full 40/day, ~80% answered (Oct 16–19: 30/40, 32/40, 32/40, 32/38). 119 lookups: 64 with insights, 55 priced nothing (46%, mostly 1-stop-limited searches).
+- Deal emails: **GOI→DXB 1–15 Nov, ₹33,883 vs Google's usual ₹38,609** (emailed Oct 17; not yet on the review page). The **GOI→CMB ₹46,552** email on Oct 12 was **wrong**: Google served an incomplete page. That led to the later-run confirmation and the Travelpayouts cross-check. Since then, two GOI→CMB candidates were correctly rejected (Google's usual ~₹69k vs Travelpayouts' ~₹31k).
+- Review verdicts: the 3 DEL Travelpayouts "deals" marked wrong; GOI→CMB marked not a deal.
+
+**Next actions, in order**
+1. Add GOI→DXB (Nov 1–15, ₹33,883) and any new Google deals to the review page (`deals` collection; never overwrite `verdicts`). The user should rate them.
+2. **Budget decision (due now):** answers have held at ~80% with the cap hit daily, so raise `GF_DAILY_LOOKUPS` 40 → 80 (and maybe `GF_PER_RUN`), then watch the refusal rate for 2–3 days.
+3. Look at the 46% "priced nothing" rate: is it the 1-stop limit on unfiltered judging, or certain routes? Consider skipping trips/routes that repeatedly price nothing.
+4. Re-plan the dates: "usable" slipped from Oct 18. Deals now flow, about 1 confirmed per 2–3 days. Tuning needs ~15 rated deals, so "done" is likely early-to-mid November, not Oct 30. Agree a new date with the user.
+5. After about 2 weeks of data: candidate and deal rate by `gf_quote.reason` (discovery vs exploration vs review), then move budget to what finds deals; tune `GF_BELOW_RANGE_LOW` / `MIN_ABS_SAVING` on verdicts.
+6. Then the decision point (personal tool vs product) and Stage 3 (holiday-aware ranking).
+
+**How to inspect production data:** decrypt the newest `data` asset into a scratch path, never into `data/faredrop.db`. The `gh` CLI isn't logged in; use the git keychain credential as `GH_TOKEN` (`git credential fill`), never printing it. See `dbstore.py` for the openssl parameters.
+
+---
 
 ## Phases to completion
 
