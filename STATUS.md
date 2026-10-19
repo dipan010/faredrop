@@ -34,6 +34,8 @@ Last reviewed: 2026-10-20 (repo reorganised into folders; dated history moved to
 
 **How to inspect production data:** decrypt the newest `data` asset into a scratch path, never into `data/faredrop.db`. The `gh` CLI isn't logged in; use the git keychain credential as `GH_TOKEN` (`git credential fill`), never printing it. See `src/dbstore.py` for the openssl parameters.
 
+**First Mopa deal (2026-10-19):** GOX→SHJ Feb 18–25, ₹30,335 Air Arabia non-stop, vs Google's usual ₹36,782 (range ₹31,500–50,000) and Travelpayouts' Goa typical ~₹45,100. Judged in the first run with GOX (20:15Z), confirmed by the manual collect run that verified the new layout (21:23Z), emailed, added to the review page. The same trip priced nothing from GOI on 42 runs, Oct 13–16. GOX→CMB (Oct 28–30) and GOX→IST priced nothing, so the Oct 12 CMB question is still open.
+
 **Layout (2026-10-20):** code in `src/`, route lists in `routes/`, tests in `tests/`, one-offs in `tools/`, the laptop's launchd job in `laptop/` (reloaded at `laptop/daily.sh` and checked: watchdog ran, exit 0). Workflows call `python3 src/<script>.py`.
 
 ## Open items (curated 2026-10-20 from the old phase and stage lists)
