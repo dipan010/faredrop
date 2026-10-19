@@ -776,6 +776,33 @@ def main():
               all(t[:3] != ("GOI", "SHJ", dep_s)
                   for t in gfcollect.discovery(cs, [("GOI", "SHJ")], today_g, 5)))
 
+        # Oct 16-19: GOI->SHJ/HKT/KTM/MLE priced nothing on every date tried,
+        # a third of all lookups. Discovery skips a route after 3 in a row.
+        cd = db.connect(str(Path(tmp) / "dead.db"))
+        collect._insert(cd, [{**rows[0], "origin": "GOI", "destination": "SHJ",
+                              "depart_date": dep_s, "return_date": ret_s,
+                              "depart_month": dep_s[:7], "price": 9000.0 + i,
+                              "airline": f"D{i}", "fetched_at": at(0)}
+                             for i in range(3)])
+
+        def quote(price, hour):
+            cd.execute("INSERT INTO gf_quote (raw_id, origin, destination,"
+                       " depart_date, return_date, nights, fetched_at, reason,"
+                       " price) VALUES (0, 'GOI', 'SHJ', '2027-01-01',"
+                       " '2027-01-08', 7, ?, 'discovery', ?)",
+                       (f"{today_g.isoformat()}T{hour:02d}:00:00+00:00", price))
+            cd.commit()
+        for h in (1, 2):
+            quote(None, h)
+        check("two empty pages in a row don't make a route dead",
+              len(gfcollect.discovery(cd, [("GOI", "SHJ")], today_g, 5)) == 1)
+        quote(None, 3)
+        check("three do: discovery skips it",
+              gfcollect.discovery(cd, [("GOI", "SHJ")], today_g, 5) == [])
+        quote(31000.0, 4)
+        check("and a priced page (from exploration) brings it back",
+              len(gfcollect.discovery(cd, [("GOI", "SHJ")], today_g, 5)) == 1)
+
         cq = db.connect(str(Path(tmp) / "stuckconfirm.db"))
         gfcollect.run(cq, fetch=lambda *a: gpage(30000), today=today_g,
                       rng=random.Random(2), pause=0, routes=[("BLR", "DXB")])

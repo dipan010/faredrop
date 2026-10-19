@@ -61,6 +61,12 @@ GF_EXPLORE_SHARE = 0.3            # of lookups spent on random trips
 # rather than mid-November (chosen 2026-10-12).
 GF_REVIEW_SHARE = 0.25
 GF_RECHECK_DAYS = 3               # don't look the same trip up again sooner
+# Discovery skips a route whose last GF_DEAD_LOOKUPS Google pages, within
+# GF_DEAD_DAYS, all priced nothing. Oct 16-19: GOI->SHJ/HKT/KTM/MLE were 37 of
+# 55 empty pages (a third of all lookups), every date tried. Exploration can
+# still pick such a route, so it comes back if Google starts pricing it.
+GF_DEAD_LOOKUPS = 3
+GF_DEAD_DAYS = 14
 GF_RAW_KEEP_DAYS = 14
 # A Google-sourced deal: the fare is at or below the bottom of Google's own
 # typical range for that trip, and saves MIN_ABS_SAVING against its usual
@@ -217,8 +223,11 @@ DIGEST_WINDOW_DAYS = 7
 VERIFY_MAX_PER_RUN = 10
 # One budget for every Google Flights request (the re-check and gfcollect.py
 # share an IP's reputation). Per UTC day, counted from gf_raw. Start small,
-# raise only after days without a block.
-GF_DAILY_LOOKUPS = 40
+# raise only after days without a block. 40 -> 80 on 2026-10-19: at 40 about
+# 80% were answered (vs ~70% at 13-15 a day), long runs held (20 of 24 in one
+# hour), and the cap was spent by ~06Z, leaving 18 h idle. Single refusals
+# (~20%) still happen daily; "block" means Google refusing wholesale.
+GF_DAILY_LOOKUPS = 80
 GF_PER_RUN = 15
 # Google refuses quick repeat requests from one GitHub runner address (first
 # answered, the rest refused, 2026-10-12). So lookups are spaced out, and a

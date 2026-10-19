@@ -335,6 +335,9 @@ exactly what deal detection picks.
 - **Which trips get looked up:** most come from *discovery*, recent
   Travelpayouts fares that look cheap for their route. The rest
   *explore*: random dates and lengths, on the routes Google has seen least.
+  Discovery skips a route whose last 3 Google pages (14 days) all priced
+  nothing, as four Goa routes did on every date; exploration can still
+  revisit it.
   `gf_quote.reason` records which, to compare them later.
 - **Judging:** an unfiltered Google search carries Google's own price
   insights for that exact trip: its usual price, its typical range and about
@@ -354,7 +357,7 @@ exactly what deal detection picks.
   never enters the Travelpayouts model. Each page's data is stored
   compressed (~9 KB) before it is read. Bodies are kept 14 days; parsed
   rows are kept for good.
-- **Budget:** `GF_DAILY_LOOKUPS` (40) Google requests a day, shared with the
+- **Budget:** `GF_DAILY_LOOKUPS` (80 since 2026-10-19) Google requests a day, shared with the
   re-check, at most `GF_PER_RUN` (15) per run. It is scraping, against
   Google's terms, so it is kept small.
 - **Getting answers from GitHub:** Google answers each GitHub runner address

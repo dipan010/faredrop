@@ -123,12 +123,28 @@ def _recently_seen(conn, today):
         " FROM gf_quote WHERE substr(fetched_at, 1, 10) > ?", (since, since))}
 
 
+def dead_routes(conn, today):
+    """Routes whose last GF_DEAD_LOOKUPS judged pages, within GF_DEAD_DAYS,
+    all priced nothing. Refusals leave no gf_quote row, so they don't count."""
+    since = (today - timedelta(days=config.GF_DEAD_DAYS)).isoformat()
+    recent = {}
+    for o, d, price in conn.execute(
+            "SELECT origin, destination, price FROM gf_quote"
+            " WHERE substr(fetched_at, 1, 10) >= ? ORDER BY fetched_at DESC",
+            (since,)):
+        recent.setdefault((o, d), []).append(price)
+    n = config.GF_DEAD_LOOKUPS
+    return {k for k, p in recent.items()
+            if len(p) >= n and all(x is None for x in p[:n])}
+
+
 def discovery(conn, routes, today, n):
     """Travelpayouts' cheapest-looking recent fares on watched routes.
 
     "Cheap-looking" is the fare against its own route's median in the same
     window: crude, but only used to decide where to spend a Google lookup.
     At most one trip per route per run, so one route can't eat the budget.
+    Routes Google keeps pricing nothing for are skipped (dead_routes).
     """
     if n <= 0:
         return []
@@ -137,7 +153,7 @@ def discovery(conn, routes, today, n):
     last = (today + timedelta(days=hi)).isoformat()
     since = (today - timedelta(days=2)).isoformat()
     seen = _recently_seen(conn, today)
-    wanted = set(routes)
+    wanted = set(routes) - dead_routes(conn, today)
     by_route = {}
     for r in conn.execute(
             "SELECT origin, destination, depart_date, return_date, price"

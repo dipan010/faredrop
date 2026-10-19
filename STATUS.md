@@ -1,10 +1,10 @@
 # faredrop — Status
 
-Last reviewed: 2026-10-19 (handoff record; detailed history follows below)
+Last reviewed: 2026-10-19, second session (budget raised, dead-route skip; detailed history follows below)
 
 | Built | Documented | Hosted | Posted |
 |---|---|---|---|
-| ✅ Travelpayouts collector (history) + Google Flights deal finder (`gfcollect.py`) + confirm/notify/health, 184 token-free checks, CI | ✅ README, this file, CLAUDE.md rules | ✅ GitHub Actions (`collect.yml` every 2 h, `gf.yml` hourly); encrypted history on the `data` release; laptop is watchdog only | ❌ |
+| ✅ Travelpayouts collector (history) + Google Flights deal finder (`gfcollect.py`) + confirm/notify/health, 187 token-free checks, CI | ✅ README, this file, CLAUDE.md rules | ✅ GitHub Actions (`collect.yml` every 2 h, `gf.yml` hourly); encrypted history on the `data` release; laptop is watchdog only | ❌ |
 
 ## Handoff — where the project is (2026-10-19)
 
@@ -13,18 +13,20 @@ Last reviewed: 2026-10-19 (handoff record; detailed history follows below)
 **How it works now**
 1. **History (Travelpayouts, `collect.yml`, every 2 h, idempotent per UTC day):** 302 international routes from 21 Indian origins (`routes.json`, added add-only by `routes.py`). One `/v1/prices/calendar` call per route, plus the per-month `/v1/prices/cheap` walk for the original 23 BLR routes: 440 cells a day. Complete every day since Oct 4 (Oct 3 was lost on the laptop era). 6,737 raw responses and 145 route-month baselines as of Oct 19. Used for discovery and as a sanity check, **never as a judge of a deal**: its cheapest fares are often Russian-market seller prices (see "Finding 2026-10-12").
 2. **Deals (Google Flights, `gfcollect.py`, `gf.yml` hourly plus a step in `collect.yml`):** watches `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI) × 25 destinations (`gf_routes.json`), any 2–21-night trip 7–180 days out. 25% of lookups explore the 16 other origins for review only (never emailed). An unfiltered search reads Google's own price insights (usual price, typical range, ~62-day history). Candidate = fare ≤ bottom of the typical range and ≥ ₹4,000 under usual. Confirmed **in a later run** with a filtered search (≤1 stop, no self-transfers): the fare must reproduce within 5%, and Google's usual must fit Travelpayouts' typical (0.6–1.6×) with the deal below it. Only then is it a deal; email goes out only for `ALERT_ORIGINS`.
-3. **Google budget:** 40 requests a day shared with the re-check (`verify.py`, which confirms Travelpayouts deals from alert cities only). Spaced ~40 s; one retry 90 s after a refusal; a refused confirmation is owed to the next run; a page that prices nothing is recorded and skipped.
+3. **Google budget:** 80 requests a day (40 until 2026-10-19), 15 per run, shared with the re-check (`verify.py`, which confirms Travelpayouts deals from alert cities only). Spaced ~40 s; one retry 90 s after a refusal; a refused confirmation is owed to the next run; a page that prices nothing is recorded and skipped; discovery skips a route whose last 3 pages in 14 days all priced nothing (`GF_DEAD_LOOKUPS`), exploration can still revisit it.
 4. **Storage and safety:** history = AES-256 snapshots on the `data` prerelease (`dbstore.py`: never restores empty, never uploads a smaller DB, newest 12 plus one a day kept). Key `FAREDROP_DB_KEY` is in `~/.faredrop.env`, the repo secret, and the user's password manager. Secrets in the repo: `TRAVEL_PAYOUTS_API_KEY`, `FAREDROP_DB_KEY`, `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`, `ALERT_TO`. Alerts: `health.py` (per-day coverage, once), `watchdog.py` on the laptop (alerts if snapshots go >30 h stale).
 
 **Results so far**
-- Google since the Oct 16 fix: uses the full 40/day, ~80% answered (Oct 16–19: 30/40, 32/40, 32/40, 32/38). 119 lookups: 64 with insights, 55 priced nothing (46%, mostly 1-stop-limited searches).
+- Google since the Oct 16 fix: uses the full 40/day, ~80% answered (Oct 16–19: 30/40, 32/40, 32/40, 32/38), against ~70% at 13–15/day on Oct 14–15. The cap was spent by ~06Z each day. 119 lookups: 64 with insights, 55 priced nothing (46%).
+- **The "priced nothing" pages were routes, not the stop limit** (judging searches are unfiltered): GOI→SHJ 11/11, GOI→HKT 9/9, GOI→KTM 9/9, GOI→MLE 8/8 = 37 of the 55. GOI took 60 of 75 discovery lookups (its Travelpayouts fares look cheapest against their medians); BLR, COK and MAA discovery priced every page. Unverified guess: those Goa flights use Mopa (GOX), not Dabolim (GOI).
+- Status check 2026-10-19: all `collect.yml` and `gf.yml` runs since Oct 12 succeeded (none cancelled); Travelpayouts 440/440 every day Oct 12–19. No new Google candidate since Oct 17 (4 in all: 2 confirmed, 2 rejected by the cross-check). One unconfirmed Travelpayouts deal, DEL→MOW Nov 10–Dec 7 ₹29,719 (Oct 17): not an alert city, so never checked on Google or emailed, and left off the review page.
 - Deal emails: **GOI→DXB 1–15 Nov, ₹33,883 vs Google's usual ₹38,609** (emailed Oct 17; not yet on the review page). The **GOI→CMB ₹46,552** email on Oct 12 was **wrong**: Google served an incomplete page. That led to the later-run confirmation and the Travelpayouts cross-check. Since then, two GOI→CMB candidates were correctly rejected (Google's usual ~₹69k vs Travelpayouts' ~₹31k).
-- Review verdicts: the 3 DEL Travelpayouts "deals" marked wrong; GOI→CMB marked not a deal.
+- Review verdicts: the 3 DEL Travelpayouts "deals" marked wrong. GOI→CMB carries a "Not a deal" note on the page but **no verdict of the user's** yet. GOI→DXB added to the page 2026-10-19 (confirmed, TP typical ~₹37,900 over 51 fares), awaiting a verdict.
 
 **Next actions, in order**
-1. Add GOI→DXB (Nov 1–15, ₹33,883) and any new Google deals to the review page (`deals` collection; never overwrite `verdicts`). The user should rate them.
-2. **Budget decision (due now):** answers have held at ~80% with the cap hit daily, so raise `GF_DAILY_LOOKUPS` 40 → 80 (and maybe `GF_PER_RUN`), then watch the refusal rate for 2–3 days.
-3. Look at the 46% "priced nothing" rate: is it the 1-stop limit on unfiltered judging, or certain routes? Consider skipping trips/routes that repeatedly price nothing.
+1. [x] GOI→DXB added to the review page (2026-10-19). **The user should rate it, and GOI→CMB.**
+2. [x] Budget 40 → 80 a day (user's decision, 2026-10-19), `GF_PER_RUN` stays 15. "Days without a block" read as no wholesale refusal; ~20% single refusals still happen daily. **Watch Oct 20–22:** answer rate (stop raising, or step back, if it falls well under ~75%), and Travelpayouts still 440/440 (gf runs now work later into the day and share the `collect` concurrency group).
+3. [x] Priced nothing: four GOI routes (see Results). Discovery now skips dead routes (user's decision, 2026-10-19); on Oct 19's data that is GOI→HKT/KTM/MLE/SGN/SHJ. Check on Oct 22 that the empty-page share fell.
 4. Re-plan the dates: "usable" slipped from Oct 18. Deals now flow, about 1 confirmed per 2–3 days. Tuning needs ~15 rated deals, so "done" is likely early-to-mid November, not Oct 30. Agree a new date with the user.
 5. After about 2 weeks of data: candidate and deal rate by `gf_quote.reason` (discovery vs exploration vs review), then move budget to what finds deals; tune `GF_BELOW_RANGE_LOW` / `MIN_ABS_SAVING` on verdicts.
 6. Then the decision point (personal tool vs product) and Stage 3 (holiday-aware ranking).
