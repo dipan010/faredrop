@@ -63,8 +63,9 @@ GF_REVIEW_SHARE = 0.25
 GF_RECHECK_DAYS = 3               # don't look the same trip up again sooner
 # Discovery skips a route whose last GF_DEAD_LOOKUPS Google pages, within
 # GF_DEAD_DAYS, all priced nothing. Oct 16-19: GOI->SHJ/HKT/KTM/MLE were 37 of
-# 55 empty pages (a third of all lookups), every date tried. Exploration can
-# still pick such a route, so it comes back if Google starts pricing it.
+# 55 empty pages (a third of all lookups), every date tried: no itinerary
+# within MAX_STOPS, which judging searches use too, so nothing emailable is
+# lost. A route is retried once its empty pages age out of the window.
 GF_DEAD_LOOKUPS = 3
 GF_DEAD_DAYS = 14
 GF_RAW_KEEP_DAYS = 14

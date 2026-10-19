@@ -336,8 +336,8 @@ exactly what deal detection picks.
   Travelpayouts fares that look cheap for their route. The rest
   *explore*: random dates and lengths, on the routes Google has seen least.
   Discovery skips a route whose last 3 Google pages (14 days) all priced
-  nothing, as four Goa routes did on every date; exploration can still
-  revisit it.
+  nothing (none within `MAX_STOPS`), as four Goa routes did on every
+  date; it is retried once those pages age out of the window.
   `gf_quote.reason` records which, to compare them later.
 - **Judging:** an unfiltered Google search carries Google's own price
   insights for that exact trip: its usual price, its typical range and about

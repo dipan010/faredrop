@@ -800,7 +800,7 @@ def main():
         check("three do: discovery skips it",
               gfcollect.discovery(cd, [("GOI", "SHJ")], today_g, 5) == [])
         quote(31000.0, 4)
-        check("and a priced page (from exploration) brings it back",
+        check("and a newer priced page brings it back",
               len(gfcollect.discovery(cd, [("GOI", "SHJ")], today_g, 5)) == 1)
 
         cq = db.connect(str(Path(tmp) / "stuckconfirm.db"))
