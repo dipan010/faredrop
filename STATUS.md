@@ -22,7 +22,7 @@ Last reviewed: 2026-10-21 (review page refreshed; budget, dead routes and Mopa c
 - **Mopa (GOX):** prices SHJ (15/15, Air Arabia non-stop), DXB, BKK, HKT, AUH, LON, MCT, KUL. Nothing for CMB, KTM, MLE, SGN, IST, SEL, AMS. Apart from SHJ, Mopa's fares are high (DXB from ₹87k, BKK ₹108k): long multi-airline trips.
 - **Oct 12 GOI→CMB, explained:** not an airport mismatch (GOX→CMB has no flights). Google's usual for GOI→CMB is ₹51–69k only for trips in late Oct/early Nov (Diwali, Nov 8) and ₹37–39k for Nov 23 and January, while fares sit ~₹30k throughout. So Google's usual is inflated for the festival dates and Travelpayouts' ~₹31k is the real level. The cross-check keeps rejecting those (5 so far), as designed. The incomplete-page explanation for the ₹46,552 itself (user saw ₹22,410) stands.
 - **Deal emails (Google):** GOI→CMB Oct 24–30 ₹46,552 (Oct 12, **wrong**, before the fix); GOI→DXB Nov 1–15 ₹33,883 (Oct 17, **good**); GOX→SHJ Feb 18–25 ₹30,335 (Oct 19, **good**); GOX→SHJ Feb 20–25 ₹30,698 (Oct 21); GOI→CMB Jan 5–12 ₹32,403, IndiGo via MAA, TP typical ~₹37,700 (Oct 21). The last two await verdicts. One more candidate is waiting for its confirmation: GOI→CMB Jan 7–12 ₹31,961.
-- **Near-duplicates:** the two GOX→SHJ emails are nearly the same trip (Feb 18–25, Feb 20–25), and GOI→CMB Jan 7–12 would repeat Jan 5–12. Dedup is by exact trip only. Raised with the user 2026-10-21.
+- **Near-duplicates:** the two GOX→SHJ emails were nearly the same trip (Feb 18–25, Feb 20–25). **Fixed 2026-10-21 (user's call):** a deal is not emailed when the same route had one emailed in the last 14 days departing within 7 days, unless it is 5%+ cheaper (`NOTIFY_DUP_*`). Such deals are still recorded and go on the review page. On the production copy this holds back GOI→CMB Jan 7–12 (₹31,961 vs ₹32,403 emailed).
 - Review verdicts: 3 DEL Travelpayouts deals wrong; Google deals 2 good, 1 wrong (pre-fix); 2 to rate. 2 of ~15 rated toward tuning.
 
 **Next actions, in order**
@@ -46,6 +46,7 @@ Last reviewed: 2026-10-21 (review page refreshed; budget, dead routes and Mopa c
 - [ ] **Snapshots** grow with every run; consider skipping the upload when a run changed nothing.
 - [ ] **End-of-Stage-1 write-up** (the AI-quality story below), with alert precision before and after.
 - [ ] Optional: a read-only digest page; a write-up comparing it with the Zomunk model.
+- [ ] **If there is ever a frontend** (user, 2026-10-21): show near-duplicate deals as one card, not several, with a note that the deal will likely go away in a few days. Emails already skip them.
 - Closed by later work (details in `docs/history.md`): Google Flights as a source (built 2026-10-12), Google answer-rate measurement (done 2026-10-16), `QUOTES_PER_CALL` yield check (3.0 fares per call, 2026-10-12), `VERIFY_SUPPRESS_GONE` (replaced by `VERIFY_REQUIRE_CONFIRMED`).
 
 ## Target dates (re-agreed 2026-10-19)

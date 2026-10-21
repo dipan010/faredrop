@@ -412,11 +412,14 @@ def main():
                          " WHERE notified_at IS NULL").fetchone()[0] == 2)
 
         res = notify.run(c7, sender=ok_sender)
-        check(f"a good send delivers every pending deal ({res['sent']})",
-              res["sent"] == 2 and len(sent_box) == 1)
-        check("and stamps them",
-              c7.execute("SELECT count(*) FROM deal"
-                         " WHERE notified_at IS NULL").fetchone()[0] == 0)
+        check(f"a good send delivers the pending deal ({res['sent']}), and the"
+              " same trip's dearer row is a near-duplicate, not a second line",
+              res["sent"] == 1 and res["near_duplicates"] == 1
+              and len(sent_box) == 1)
+        check("only the sent one is stamped",
+              [r[0] for r in c7.execute(
+                  "SELECT price FROM deal WHERE notified_at IS NOT NULL")]
+              == [11900.0])
         again = notify.run(c7, sender=ok_sender)
         check("a second run sends nothing",
               again["sent"] == 0 and len(sent_box) == 1)
@@ -426,7 +429,7 @@ def main():
         body = msg.get_body(preferencelist=("plain",)).get_content()
         check(f"subject names the headline deal ({msg['Subject'][:40]}...)",
               "BLR" in msg["Subject"] and "DXB" in msg["Subject"])
-        check("subject says how many more", "+1 more" in msg["Subject"])
+        check("one deal, so no 'more' in the subject", "more" not in msg["Subject"])
         check("body carries the price and the expectation",
               "11,900" in body and "expected" in body)
         check("body links a dated Google Flights search",
@@ -477,13 +480,13 @@ def main():
         # Offline: the Google Flights lookup is injected, like notify's sender.
         c9 = db.connect(str(Path(tmp) / "verify.db"))
 
-        def put(conn, i, depart=far7, ret=far7, price=12000.0):
+        def put(conn, i, depart=far7, ret=far7, price=12000.0, dest="DXB"):
             conn.execute(
                 "INSERT INTO deal (observation_id, origin, destination,"
                 " depart_date, return_date, trip_class, price, baseline_p50,"
                 " discount_pct, kind, flags, fingerprint, detected_at)"
                 " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (i, "BLR", "DXB", depart, ret, 0, price, 30000.0, 60.0,
+                (i, "BLR", dest, depart, ret, 0, price, 30000.0, 60.0,
                  "drop", "[]", f"v{i}", at(1)))
             conn.commit()
 
@@ -492,8 +495,9 @@ def main():
                               " WHERE observation_id=?", (i,)).fetchone()
 
         put(c9, 1, price=12000.0)
-        put(c9, 2, price=12500.0)
-        put(c9, 3, ret=None)
+        # Distinct routes, so none is a near-duplicate of another (notify).
+        put(c9, 2, price=12500.0, dest="SIN")
+        put(c9, 3, ret=None, dest="BKK")
         live = {12000.0: 13000, 12500.0: 26000}
         r9 = verify.run(c9, fetch=lambda d: live[d["price"]], pause=0)
         check("a fare still well below expected stays a deal",
@@ -577,6 +581,38 @@ def main():
         check("a deal from a city not in ALERT_ORIGINS is kept but not sent",
               sorted(d["origin"] for d in notify.pending(c14)) == ["BLR", "GOI"]
               and c14.execute("SELECT count(*) FROM deal").fetchone()[0] == 3)
+        # GOX->SHJ Feb 18-25 then Feb 20-25: two emails for one trip (2026-10-21).
+        c17 = db.connect(str(Path(tmp) / "dupes.db"))
+        c17.execute(
+            "INSERT INTO deal (observation_id, origin, destination, depart_date,"
+            " return_date, trip_class, price, baseline_p50, discount_pct, kind,"
+            " flags, fingerprint, detected_at, notified_at)"
+            " VALUES (1, 'GOX', 'SHJ', '2027-02-18', '2027-02-25', 0, 30335.0,"
+            " 36782.0, 17.5, 'drop', '[]', 'd1', ?, ?)", (at(0), at(0)))
+        c17.commit()
+
+        def cand(dep, price, dest="SHJ"):
+            return {"origin": "GOX", "destination": dest, "depart_date": dep,
+                    "price": price}
+        keep, skip = notify.near_duplicates(c17, [
+            cand("2027-02-20", 30698.0),            # same week, same price
+            cand("2027-02-21", 28500.0),            # same week, 6% cheaper
+            cand("2027-03-20", 30500.0),            # another month
+            cand("2027-03-22", 30400.0),            # repeats the one above
+            cand("2027-02-20", 30000.0, "DXB")])    # another route
+        check("a near-duplicate of an emailed deal is not emailed again",
+              [d["depart_date"] for d in skip] == ["2027-02-20", "2027-03-22"])
+        check("unless it is 5%+ cheaper, or another week or route",
+              [(d["destination"], d["depart_date"]) for d in keep]
+              == [("SHJ", "2027-02-21"), ("SHJ", "2027-03-20"),
+                  ("DXB", "2027-02-20")])
+        import sqlite3 as _sq
+        plain17 = _sq.connect(str(Path(tmp) / "dupes.db"))
+        check("and it reads the sent deals from any connection, tuple rows too",
+              notify.near_duplicates(plain17, [cand("2027-02-20", 30698.0)])[1]
+              != [])
+        plain17.close()
+
         c15 = db.connect(str(Path(tmp) / "none.db"))
         put(c15, 1, price=12000.0)
         r15 = verify.run(c15, fetch=lambda d: None, pause=0)

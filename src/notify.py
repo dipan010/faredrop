@@ -14,8 +14,9 @@ Two rules hold this together:
   setup hint and exit 0. Collection is the irreplaceable step; a mail
   misconfiguration must never make the daily run look like it failed.
 
-Repeat suppression lives in detect.py, not here. By the time a deal reaches
-this module it is already known to be new.
+Repeat suppression of the same trip lives in detect.py. This module skips
+near-duplicates: another trip on a route already emailed, departing within a
+week of it, and not meaningfully cheaper (see `near_duplicates`).
 
     python3 src/notify.py --dry-run     # print the email instead of sending it
     python3 src/notify.py
@@ -168,6 +169,42 @@ def compose(deals, airlines=None, airports=None):
     return msg
 
 
+def _day(text):
+    try:
+        return datetime.strptime(text[:10], "%Y-%m-%d").date()
+    except (TypeError, ValueError):
+        return None
+
+
+def near_duplicates(conn, deals, now=None):
+    """Split pending deals into (to send, skipped). Skipped: the same route
+    already emailed in the last NOTIFY_DUP_DAYS (or earlier in this batch),
+    departing within NOTIFY_DUP_DEPART_DAYS, and not NOTIFY_DUP_CHEAPER
+    cheaper. Skipped deals stay unstamped, so they age out with the window."""
+    now = now or datetime.now(timezone.utc)
+    since = (now - timedelta(days=config.NOTIFY_DUP_DAYS)) \
+        .isoformat(timespec="seconds")
+    sent = {}
+    for r in conn.execute(
+            "SELECT origin, destination, depart_date, price FROM deal"
+            " WHERE notified_at IS NOT NULL AND notified_at != ''"
+            " AND notified_at >= ?", (since,)):
+        sent.setdefault((r[0], r[1]), []).append((_day(r[2]), r[3]))
+    keep, skip = [], []
+    for d in deals:
+        dep = _day(d["depart_date"])
+        dup = dep is not None and any(
+            when is not None
+            and abs((dep - when).days) <= config.NOTIFY_DUP_DEPART_DAYS
+            and d["price"] > price * (1 - config.NOTIFY_DUP_CHEAPER)
+            for when, price in sent.get((d["origin"], d["destination"]), []))
+        (skip if dup else keep).append(d)
+        if not dup:
+            sent.setdefault((d["origin"], d["destination"]), []).append(
+                (dep, d["price"]))
+    return keep, skip
+
+
 def configured():
     return bool(config.SMTP_HOST and config.ALERT_TO and config.ALERT_FROM)
 
@@ -183,9 +220,11 @@ def send(msg):
 
 def run(conn, dry_run=False, sender=None, limit=25, window_days=None):
     """Send pending deals and stamp them. `sender` is injectable for tests."""
-    deals = pending(conn, limit=limit, window_days=window_days)
+    deals, dupes = near_duplicates(
+        conn, pending(conn, limit=limit, window_days=window_days))
     if not deals:
-        return {"pending": 0, "sent": 0, "status": "nothing to send"}
+        return {"pending": 0, "sent": 0, "near_duplicates": len(dupes),
+                "status": "nothing to send"}
 
     # An injected sender IS the transport, so the SMTP settings are moot.
     if not dry_run and sender is None and not configured():
@@ -220,7 +259,8 @@ def run(conn, dry_run=False, sender=None, limit=25, window_days=None):
     conn.executemany("UPDATE deal SET notified_at = ? WHERE id = ?",
                      [(now, d["id"]) for d in deals])
     conn.commit()
-    return {"pending": len(deals), "sent": len(deals), "status": "sent"}
+    return {"pending": len(deals), "sent": len(deals),
+            "near_duplicates": len(dupes), "status": "sent"}
 
 
 if __name__ == "__main__":

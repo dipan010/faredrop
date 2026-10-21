@@ -221,6 +221,15 @@ ALERT_IMPROVE_PCT = 0.10
 # pinned to the top of the list forever.
 DIGEST_WINDOW_DAYS = 7
 
+# Near-duplicate emails. A deal is not emailed when the same route had one
+# emailed in the last NOTIFY_DUP_DAYS, departing within NOTIFY_DUP_DEPART_DAYS
+# of it, unless it is at least NOTIFY_DUP_CHEAPER cheaper. It stays recorded
+# and on the review page. (GOX->SHJ Feb 18-25 and Feb 20-25 were two emails,
+# 2026-10-19 and 21; the user's call, 2026-10-21.)
+NOTIFY_DUP_DAYS = 14
+NOTIFY_DUP_DEPART_DAYS = 7
+NOTIFY_DUP_CHEAPER = 0.05
+
 # --- the live re-check -------------------------------------------------
 # Before an alert goes out, verify.py looks the deal up on Google Flights and
 # records the live price, standing in for the human who checks a candidate

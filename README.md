@@ -125,6 +125,11 @@ digest twice cannot double-send. Repeat suppression happens earlier, in
 falling from ₹18k to ₹15k is news; the same ₹18k on a third consecutive day
 is how you teach someone to ignore a channel.
 
+Near-duplicates are held back at sending (`notify.near_duplicates`, since
+2026-10-21): another trip on a route already emailed in the last 14 days,
+departing within 7 days of it, is not emailed unless it is at least 5%
+cheaper (`NOTIFY_DUP_*`). It is still recorded and goes on the review page.
+
 ### The live re-check
 
 The feed's price can be up to 48 hours old by the time it is flagged, so
