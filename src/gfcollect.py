@@ -156,7 +156,8 @@ def discovery(conn, routes, today, n):
     window: crude, but only used to decide where to spend a Google lookup.
     At most one trip per route per run, so one route can't eat the budget.
     Routes Google keeps pricing nothing for are skipped (dead_routes). A
-    city's fares (Travelpayouts' GOI) go to one of its airports per run.
+    city's fares (Travelpayouts' GOI) go to one of its airports per run, and
+    cities take turns, so one city's noisy data can't take every slot.
     """
     if n <= 0:
         return []
@@ -196,8 +197,19 @@ def discovery(conn, routes, today, n):
                    key=lambda f: f[2], default=None)
         if best:
             picks.append((best[2] / median, (*route, best[0], best[1])))
-    picks.sort()
-    return [p[1] for p in picks[:n]]
+    # Cities take turns: each city's best-looking trip, then each one's
+    # second best, and so on. Ranked on one list, Goa's skewed Travelpayouts
+    # fares took 160 of 209 discovery lookups (Oct 19-23); BLR got 24, HYD 6.
+    by_city = {}
+    for ratio, trip in sorted(picks):
+        by_city.setdefault(config.TP_CITY.get(trip[0], trip[0]), []).append(
+            (ratio, trip))
+    out, rounds = [], list(by_city.values())
+    while len(out) < n and any(rounds):
+        for city in sorted((r for r in rounds if r), key=lambda r: r[0][0]):
+            if len(out) < n:
+                out.append(city.pop(0)[1])
+    return out
 
 
 def exploration(conn, routes, today, n, rng):

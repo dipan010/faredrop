@@ -93,8 +93,9 @@ GF_TP_MIN_FARES = 5
 # routes.json; deals elsewhere are still detected and shown by digest.py, but
 # not sent. BLR plus nearby, chosen 2026-10-06.
 # GOX (Goa's Mopa airport) added 2026-10-19: Google prices GOX->SHJ, while
-# GOI->SHJ priced nothing on every date tried.
-ALERT_ORIGINS = {"BLR", "MAA", "COK", "HYD", "GOI", "GOX"}
+# GOI->SHJ priced nothing on every date tried. BOM (Mumbai) and CCU (Kolkata)
+# added 2026-10-23 at the user's request.
+ALERT_ORIGINS = {"BLR", "MAA", "COK", "HYD", "GOI", "GOX", "BOM", "CCU"}
 # Google searches airports; Travelpayouts files some under their city's code
 # (GOI = all of Goa). Its fares for the city feed discovery and the cross-check
 # for each such airport.

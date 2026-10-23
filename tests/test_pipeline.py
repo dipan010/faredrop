@@ -774,13 +774,13 @@ def main():
         rv = gfcollect.run(cv, fetch=lambda *a: gpage(30000), today=today_g,
                            rng=random.Random(5), pause=0,
                            routes=[("BLR", "DXB")],
-                           review_routes=[("DEL", "DXB"), ("BOM", "DXB")])
+                           review_routes=[("DEL", "DXB"), ("PNQ", "DXB")])
         reasons = [r[0] for r in cv.execute("SELECT reason FROM gf_quote")]
         check(f"a share of lookups explores other cities for review ({reasons.count('review')})",
               "review" in reasons and reasons.count("review") < len(reasons))
         gfcollect.run(cv, fetch=lambda *a: gpage(30200), today=today_g,
                       rng=random.Random(6), pause=0, routes=[("BLR", "DXB")],
-                      review_routes=[("DEL", "DXB"), ("BOM", "DXB")])
+                      review_routes=[("DEL", "DXB"), ("PNQ", "DXB")])
         config.VERIFY_REQUIRE_CONFIRMED = True
         try:
             sent_origins = {d["origin"] for d in notify.pending(cv)}
@@ -879,6 +879,26 @@ def main():
         cx.commit()
         check("and to GOX once GOI's route is dead",
               [t[0] for t in gfcollect.discovery(cx, goa, today_g, 5)] == ["GOX"])
+        # Oct 19-23: Goa took 160 of 209 discovery lookups; cities now take turns.
+        for dest in ("DXB", "BKK", "SIN"):
+            collect._insert(cx, [{**rows[0], "origin": "GOI", "destination": dest,
+                                  "depart_date": dep_s, "return_date": ret_s,
+                                  "depart_month": dep_s[:7],
+                                  "price": 5000.0 if i == 0 else 30000.0 + i,
+                                  "airline": f"G{dest}{i}", "fetched_at": at(0)}
+                                 for i in range(4)])
+        collect._insert(cx, [{**rows[0], "origin": "BLR", "destination": "DXB",
+                              "depart_date": dep_s, "return_date": ret_s,
+                              "depart_month": dep_s[:7], "price": 29000.0 + i,
+                              "airline": f"B{i}", "fetched_at": at(0)}
+                             for i in range(4)])
+        fair = gfcollect.discovery(
+            cx, [("GOI", d) for d in ("DXB", "BKK", "SIN")]
+            + [("GOX", d) for d in ("DXB", "BKK", "SIN")] + [("BLR", "DXB")],
+            today_g, 2)
+        check(f"cities take turns: Goa's best, then Bangalore's ({fair})",
+              [t[0] for t in fair][1] == "BLR"
+              and fair[0][0] in ("GOI", "GOX"))
         check("GOX is judged against Travelpayouts' Goa (GOI) fares",
               gfcollect.tp_typical(cx, "GOX", "SHJ", dep_s, today_g)
               == gfcollect.tp_typical(cx, "GOI", "SHJ", dep_s, today_g)
