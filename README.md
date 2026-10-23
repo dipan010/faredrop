@@ -84,6 +84,127 @@ Run everything from the repo root (paths like `data/` are relative to it).
 | `health.py` | Alarm (email, macOS notification) when a day of collection is missed. |
 | `dbstore.py` | Encrypted history snapshots on the `data` release, for the Actions collector. |
 
+## How a deal is decided
+
+Everything hinges on predicting what a route-month *should* cost, then asking
+how far below it a fare sits.
+
+**Count distinct quotes, not rows.** The feed repeats the same fare day after
+day, so thirty rows can be four fares. Counting the repeats overstates how
+much history exists and collapses the spread estimate -- which is the exact
+number the outlier score divides by. Rows stay verbatim as the audit trail;
+they are collapsed on read, in `baseline.distinct_quotes`.
+
+**A history, not one day's spread.** A route-month needs 12 distinct quotes
+*and* data from at least `MIN_HISTORY_DAYS` (7) different collection days.
+The calendar endpoint returns a whole month of departure dates in one call,
+so one day can already hold 12 quotes. "Normal" built from that is only the
+spread across departure dates, and a "deal" against it only means "the
+cheapest date this month". That is exactly what fired on 2026-10-06, the
+first day of the wider collection. Every recompute starts clean, so a cell
+that stops qualifying loses its baseline.
+
+**Google Flights must confirm it.** Travelpayouts often reports a fare from
+a Russian-market seller that an Indian traveller can't buy. The first three
+deals (2026-10-12) were exactly that, 30–115% under Google Flights. So every
+deal is looked up on Google Flights for the same dates, and only deals whose
+live price still clears the gates are emailed.
+
+**The quality bar filters.** A fare with more than `MAX_STOPS` (1) stops is
+never a deal, however cheap; it is not merely flagged. Deals are emailed
+only for departure cities in `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI, GOX
+(Goa's Mopa airport, since 2026-10-19), and BOM and CCU (since 2026-10-23)).
+Every other origin is still collected and still shows in `digest.py`.
+
+**Condition on how far ahead you are booking.** A fare 200 days out and one
+10 days out are different distributions; pooled, the median is a blend and a
+fixed ratio is wrong against both. Four coarse buckets, not a fitted curve --
+at roughly one quote per cell per day a smooth booking curve is unfittable
+for months, whereas a bucket that never fills falls back to the route's own
+level and costs nothing.
+
+**Work in log space.** Fares are right-skewed and move multiplicatively. In
+logs, "20% below normal" is one distance on a ₹15k route and a ₹150k one, so
+a single threshold serves both.
+
+    log price  =  route level  +  horizon offset  +  cell offset  +  residual
+
+A route's horizon offset is trusted in proportion to the data behind it --
+`n/(n+k)` of the say, the rest from that bucket pooled across all routes,
+itself damped toward zero by the same rule. Both shrinkages bias the offset
+low, so the horizon is deliberately *under*-corrected: fewer false deals, at
+the cost of missing some real last-minute ones.
+
+Then three gates, and they are not equally trustworthy:
+
+| Gate | What it is |
+|---|---|
+| Ratio | Below `DEAL_RATIO` of prediction. Scale-free. |
+| Absolute saving | At least `MIN_ABS_SAVING` below it. The only gate that needs no calibrated scale. |
+| Outlier score | How far into the left tail, in robust log units. **Ranks, does not classify.** |
+
+Only fares fetched within `DETECT_WINDOW_DAYS` are candidates. A fare that
+was cheap in March is history, not something anyone can book, and without
+that bound every run re-walks the whole table and re-serves it as today's
+deal. It still counts toward the baseline -- it just isn't offered.
+
+`kind='mistake'` means "look at this one first". Every price in the feed is a
+minimum over a ~48h search window, and the left tail of a distribution of
+minima is not the tail the score's arithmetic assumes. Logs fix the skew, not
+that.
+
+**The thresholds are placeholders.** They have never been fitted -- there are
+no observations yet. `simulate.py` shows the code degrades sanely on sparse
+input; it cannot tell you the right numbers, because measuring precision on a
+generator the model is built to invert proves only that it inverts it.
+
+## Spending a limited budget
+
+40 destinations x 6 months is 240 cells, so a uniform daily walk costs 240
+calls. If that's more than your tier allows, **watch fewer destinations
+first** -- `MAX_DESTINATIONS` is the same lever as a scheduler and much
+easier to reason about.
+
+If you want all 40 watched anyway, `collect.py --scheduled` allocates a fixed
+budget instead. The argument is a threshold effect: below `MIN_OBSERVATIONS`
+a cell has no baseline, so it can produce no deal at any price. 240 cells at
+n=6 are worth zero; 40 at n=12 are worth everything. So mature cells are
+served first, and whatever's left goes to the cells *closest* to maturity
+rather than the neediest -- finishing a cell at n=11 buys a working baseline,
+starting a fifth at n=0 buys nothing.
+
+Measured against a plain round-robin, 24 cells over 30 days:
+
+| calls/day | round-robin matures | cohort matures |
+|---:|---:|---:|
+| 1 | 0 | 3 |
+| 2 | 0 | 9 |
+| 3 | 16 | 16 |
+| 4 | 24 | 18 |
+| 6 | 24 | 24 |
+| 12 | 24 (360 calls) | 24 (271 calls) |
+
+**Read this table for its shape, not its numbers.** Every figure in it falls
+out of `simulate.py`'s invented yield -- three quotes per call, each lingering
+one to four days. Change that and the crossover moves. What the table
+establishes is that *two regimes exist* and which one you are in depends on
+whether the budget can mature every cell; it does not establish that 3
+calls/day is anyone's crossover. `python3 src/schedule.py` computes the boundary
+from your own history once there is any.
+
+Only one regime wants a scheduler. When the budget can't mature everything,
+round-robin matures *nothing* -- every cell stalls just short of the line --
+and cohorting is the difference between a working system and no system. When
+the budget is comfortable, round-robin is as good and simpler; at 12/day the
+only gain is a quarter of the calls back. `python3 src/schedule.py` tells you
+which regime you're in. `collect.py` still walks uniformly by default.
+
+One thing that had to be fixed to make this work at all: capping maintenance.
+Left uncapped the policy is absorbing -- once enough cells mature, re-polling
+them eats the whole budget and no new cell is ever opened again. That showed
+up in simulation as the cohort locking at 9 cells while round-robin reached
+16. `EXPLORE_RESERVE` is the floor that prevents it.
+
 ## Running it daily
 
 Collection is the only step that can't be caught up later, so it shouldn't
@@ -223,7 +344,7 @@ higher. A 12-fare comparison found Travelpayouts' ordinary prices within
 about 10% of Google, but its cheapest outliers unreliable, and those are
 exactly what deal detection picks.
 
-- **Watched:** `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI, GOX) × the 25
+- **Watched:** `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI, GOX, BOM, CCU) × the 25
   destinations in `routes/gf_routes.json`. Any trip of 2–21 nights departing 7–180
   days out.
 - **Which trips get looked up:** most come from *discovery*, recent
@@ -234,7 +355,9 @@ exactly what deal detection picks.
   date. One probe after 14 days; each further empty page doubles the
   wait, up to 60 days. Travelpayouts files both Goa airports as GOI, so
   its Goa fares feed discovery and the cross-check for GOI and GOX
-  (`TP_CITY`), one airport per route per run.
+  (`TP_CITY`), one airport per route per run. Cities take turns in
+  discovery (each city's best-looking trip, then each one's second best),
+  so one city's noisy Travelpayouts data can't take every slot.
   `gf_quote.reason` records which, to compare them later.
 - **Judging:** an unfiltered Google search carries Google's own price
   insights for that exact trip: its usual price, its typical range and about
