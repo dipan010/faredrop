@@ -25,18 +25,29 @@ def main():
     if not config.TOKEN:
         sys.exit("TRAVEL_PAYOUTS_API_KEY is not set")
     origin, dest = ROUTE
-    rows = []
-    for month in collect.months_ahead(3):
-        payload, fetched_at = api.get(
-            collect.ENDPOINT,
-            {"origin": origin, "destination": dest, "depart_date": month})
+
+    def fetch(endpoint, params):
+        payload, fetched_at = api.get(endpoint, params)
         if payload.get("success") is not True:
             # The error text never contains the key: it travels in a header.
             sys.exit(f"API refused the request: {str(payload)[:200]}")
-        rows += collect._parse(payload, origin, dest, fetched_at)
+        return collect._parse(payload, origin, dest, fetched_at, source=endpoint)
+
+    # The calendar is where most fares come from (~1,900 a day), so it is the
+    # test. /cheap is thin (1-3 BLR->DXB fares a day in Oct 2026) and came back
+    # empty for 3 months on 2026-10-26, failing CI while collection was fine;
+    # an empty /cheap is now a warning, not a failure.
+    rows = fetch(*collect._request(origin, dest, collect.CALENDAR))
     if not rows:
-        sys.exit(f"key accepted, but no fares parsed for {origin}->{dest} "
-                 "in 3 months -- the response shape may have changed")
+        sys.exit(f"key accepted, but no calendar fares parsed for {origin}->"
+                 f"{dest} -- the response shape may have changed")
+    cheap = []
+    for month in collect.months_ahead(3):
+        cheap += fetch(*collect._request(origin, dest, month))
+    if not cheap:
+        print(f"warning: /cheap returned no {origin}->{dest} fares in 3 months"
+              " (thin cache; not a failure)")
+    rows += cheap
     bad = [r for r in rows if r["stops"] is None or not r["return_date"]]
     if bad:
         sys.exit(f"{len(bad)} fare(s) parsed without stops or a return date")
