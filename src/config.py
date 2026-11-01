@@ -53,13 +53,18 @@ MAX_STOPS = 1              # Zomunk's bar: non-stop or one-stop only. Fares
 GF_ROUTES_FILE = "routes/gf_routes.json"   # from the repo root
 GF_HORIZON_DAYS = (7, 180)        # departures this far ahead
 GF_NIGHTS = (2, 21)               # trip lengths considered, any in between
-GF_EXPLORE_SHARE = 0.3            # of lookups spent on random trips
+# 0.3 until 2026-11-02: random trips found 1 deal in 202 lookups (CCU->FRA, a
+# route Travelpayouts has no data for), discovery 25 in 614. Kept small for
+# the routes Travelpayouts can't see.
+GF_EXPLORE_SHARE = 0.15           # of lookups spent on random trips
 # Of each run's new lookups, this share explores the OTHER Indian origins in
 # routes.json (random trips to the same destinations). Their deals are never
 # emailed (notify filters on ALERT_ORIGINS); they exist to put more confirmed
 # deals on the review page, so the rules can be tuned on verdicts by ~Oct 30
 # rather than mid-November (chosen 2026-10-12).
-GF_REVIEW_SHARE = 0.25
+# 0.25 until 2026-11-02: 190 review lookups gave 0 candidates (random dates,
+# 46% empty pages), so the share went to discovery (user's call).
+GF_REVIEW_SHARE = 0.0
 GF_RECHECK_DAYS = 3               # don't look the same trip up again sooner
 # Discovery skips a route whose last GF_DEAD_LOOKUPS Google pages all priced
 # nothing. It is probed again with ONE lookup after GF_DEAD_DAYS; each further

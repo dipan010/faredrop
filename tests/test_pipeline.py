@@ -770,6 +770,16 @@ def main():
               len(calls_b) == 1 and rb["status"].startswith("stopped")
               and cb.execute("SELECT ok FROM gf_raw").fetchall()[0][0] == 0)
 
+        c0 = db.connect(str(Path(tmp) / "review0.db"))
+        gfcollect.run(c0, fetch=lambda *a: gpage(36000), today=today_g,
+                      rng=random.Random(5), pause=0, routes=[("BLR", "DXB")],
+                      review_routes=[("DEL", "DXB"), ("PNQ", "DXB")])
+        check(f"at the production share ({config.GF_REVIEW_SHARE}) review cities get"
+              " no lookups when it is 0",
+              config.GF_REVIEW_SHARE > 0 or "review" not in
+              [r[0] for r in c0.execute("SELECT reason FROM gf_quote")])
+        # The mechanism, at a non-zero share (0.25 until 2026-11-02).
+        saved_share, config.GF_REVIEW_SHARE = config.GF_REVIEW_SHARE, 0.25
         cv = db.connect(str(Path(tmp) / "review.db"))
         rv = gfcollect.run(cv, fetch=lambda *a: gpage(30000), today=today_g,
                            rng=random.Random(5), pause=0,
@@ -781,6 +791,7 @@ def main():
         gfcollect.run(cv, fetch=lambda *a: gpage(30200), today=today_g,
                       rng=random.Random(6), pause=0, routes=[("BLR", "DXB")],
                       review_routes=[("DEL", "DXB"), ("PNQ", "DXB")])
+        config.GF_REVIEW_SHARE = saved_share
         config.VERIFY_REQUIRE_CONFIRMED = True
         try:
             sent_origins = {d["origin"] for d in notify.pending(cv)}

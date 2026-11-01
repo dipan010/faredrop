@@ -349,7 +349,10 @@ exactly what deal detection picks.
   days out.
 - **Which trips get looked up:** most come from *discovery*, recent
   Travelpayouts fares that look cheap for their route. The rest
-  *explore*: random dates and lengths, on the routes Google has seen least.
+  *explore* (15% since 2026-11-02, was 30%): random dates and lengths, on
+  the routes Google has seen least. Exploring the other Indian cities for the
+  review page (`GF_REVIEW_SHARE`) is off since 2026-11-02: 0 candidates in
+  190 lookups.
   Discovery skips a route whose last 3 Google pages (14 days) all priced
   nothing (none within `MAX_STOPS`), as four Goa routes did on every
   date. One probe after 14 days; each further empty page doubles the
