@@ -1,0 +1,36 @@
+# Experiment (2026-11-14): can a headless browser read Google Flights'
+# calendar prices? See tools/calendar_probe.py. Manual only, no secrets, no
+# database, no email: it saves what the page loads as a run artifact.
+name: calendar-probe
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install fast-flights and a headless Chrome
+        run: |
+          pip install -r requirements-verify.txt playwright
+          python3 -m playwright install --with-deps chromium
+
+      - name: Probe
+        run: python3 tools/calendar_probe.py calendar_out
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: calendar-probe
+          path: calendar_out
+          retention-days: 7
