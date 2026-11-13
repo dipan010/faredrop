@@ -351,8 +351,16 @@ def run(conn, fetch=None, today=None, rng=None, pause=None, dry_run=False,
                 if review_routes and trips_n > 1 else 0)
     mine = trips_n - n_review
     n_explore = int(round(mine * config.GF_EXPLORE_SHARE))
-    trips = [(t, "discovery") for t in
-             discovery(conn, routes, today, mine - n_explore)]
+    # Calendar leads (gfcalendar.py, an experiment since 2026-11-14) take up
+    # to GF_CAL_SHARE of the discovery slots; Travelpayouts fills the rest.
+    import gfcalendar
+    n_disc = mine - n_explore
+    trips = [(t, "calendar") for t in gfcalendar.leads(
+        conn, routes, today, int(round(n_disc * config.GF_CAL_SHARE)))]
+    taken = {t for t, _ in trips}
+    trips += [(t, "discovery") for t in
+              discovery(conn, routes, today, n_disc)
+              if t not in taken][:n_disc - len(trips)]
     trips += [(t, "exploration") for t in
               exploration(conn, routes, today, mine - len(trips), rng)]
     trips += [(t, "review") for t in

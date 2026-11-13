@@ -88,7 +88,7 @@ CREATE TABLE IF NOT EXISTS gf_quote (
     return_date TEXT NOT NULL,
     nights      INTEGER NOT NULL,
     fetched_at  TEXT NOT NULL,
-    reason      TEXT NOT NULL,      -- 'discovery' | 'exploration'
+    reason      TEXT NOT NULL,      -- discovery|exploration|review|calendar
     price       REAL,               -- cheapest now
     usual       REAL,               -- Google's usual price for this trip
     range_low   REAL,               -- Google's typical range
@@ -100,6 +100,34 @@ CREATE TABLE IF NOT EXISTS gf_quote (
 );
 CREATE INDEX IF NOT EXISTS idx_gf_quote_trip
     ON gf_quote (origin, destination, depart_date, return_date);
+
+-- Google's calendar (price graph), read by a headless browser (gfcalendar.py,
+-- an experiment since 2026-11-14). One row per route scanned, the raw
+-- calendar response stored BEFORE parsing; then one row per departure date.
+-- Separate from gf_raw so the scan never spends the judge/confirm budget.
+CREATE TABLE IF NOT EXISTS gf_cal_raw (
+    id          INTEGER PRIMARY KEY,
+    origin      TEXT NOT NULL,
+    destination TEXT NOT NULL,
+    nights      INTEGER NOT NULL,
+    anchor_date TEXT NOT NULL,      -- the departure the page was opened on
+    fetched_at  TEXT NOT NULL,
+    ok          INTEGER NOT NULL,   -- 0 = no calendar came back
+    body        BLOB                -- zlib(the calendar response text)
+);
+CREATE INDEX IF NOT EXISTS idx_gf_cal_raw_route
+    ON gf_cal_raw (origin, destination, fetched_at);
+CREATE TABLE IF NOT EXISTS gf_cal_price (
+    raw_id      INTEGER NOT NULL REFERENCES gf_cal_raw(id),
+    origin      TEXT NOT NULL,
+    destination TEXT NOT NULL,
+    depart_date TEXT NOT NULL,
+    return_date TEXT NOT NULL,
+    price       REAL NOT NULL,
+    fetched_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_gf_cal_price_route
+    ON gf_cal_price (origin, destination, fetched_at);
 
 -- Days health.py has already reported, so each gap is announced once.
 CREATE TABLE IF NOT EXISTS alert (

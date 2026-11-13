@@ -77,6 +77,22 @@ GF_DEAD_LOOKUPS = 3
 GF_DEAD_DAYS = 14
 GF_DEAD_MAX_DAYS = 60
 GF_RAW_KEEP_DAYS = 14
+# Google's calendar (price graph) read by a headless browser, gfcalendar.py:
+# an experiment from 2026-11-14 (user's call), on a deliberately small window.
+# Each scan opens one route on a departure GF_CAL_ANCHOR_DAYS ahead and reads
+# the ~60 departure dates the graph shows (about 4-12 weeks out), for one
+# trip length. Routes rotate, least recently scanned first.
+GF_CAL_NIGHTS = 7
+GF_CAL_ANCHOR_DAYS = 35
+GF_CAL_ROUTES_PER_RUN = 6
+GF_CAL_PAUSE_SECONDS = 25            # between routes, +/- 25% jitter
+# Leads for gfcollect.py: a scanned date at most GF_CAL_LEAD_RATIO of that
+# route's calendar median, from a scan at most GF_CAL_FRESH_DAYS old, gets a
+# normal judge-and-confirm lookup (reason 'calendar'). Up to GF_CAL_SHARE of a
+# run's discovery lookups go to such leads. Deal and email rules don't change.
+GF_CAL_LEAD_RATIO = 0.9
+GF_CAL_FRESH_DAYS = 3
+GF_CAL_SHARE = 0.4
 # A Google-sourced deal: the fare is at or below the bottom of Google's own
 # typical range for that trip, and saves MIN_ABS_SAVING against its usual
 # price. PLACEHOLDER, like DEAL_RATIO: tune on review-page verdicts.

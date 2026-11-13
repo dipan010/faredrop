@@ -1,0 +1,57 @@
+# Google's calendar (price graph) read by a headless browser: an experiment
+# since 2026-11-14, the user's call. Each run scans a few routes
+# (GF_CAL_ROUTES_PER_RUN) and stores ~60 departure-date prices per route; the
+# hourly gf.yml then looks the cheapest dates up the normal way (reason
+# 'calendar'). It never sends email itself and the deal rules don't change.
+# A failing scan stores nothing and costs the pipeline nothing.
+name: calendar
+
+on:
+  schedule:
+    # :37, clear of gf.yml's :17 and collect.yml's :47.
+    - cron: "37 2,8,14,20 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write          # store a new snapshot on the data release
+
+# The same queue as collect.yml and gf.yml: all restore and store the same
+# snapshot, so they must never overlap.
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+jobs:
+  calendar:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+      FAREDROP_DB_KEY: ${{ secrets.FAREDROP_DB_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-verify.txt
+
+      - name: Install fast-flights and a headless Chrome
+        run: |
+          pip install -r requirements-verify.txt playwright
+          python3 -m playwright install --with-deps chromium
+
+      # Fails the job before anything runs on an empty database.
+      - name: Restore the history
+        id: pull
+        run: python3 src/dbstore.py pull
+
+      - name: Scan Google's calendar
+        timeout-minutes: 15
+        continue-on-error: true
+        run: python3 src/gfcalendar.py || echo "::warning::calendar scan failed"
+
+      - name: Store the history
+        if: always() && steps.pull.outcome == 'success' && hashFiles('data/.gf_changed') != ''
+        run: python3 src/dbstore.py push

@@ -31,6 +31,7 @@ import db
 import detect
 import dbstore
 import digest
+import gfcalendar
 import gfcollect
 import health
 
@@ -924,6 +925,72 @@ def main():
         check("a confirming page that prices nothing settles the candidate as not bookable",
               rq["status"] == "ok" and rq["owed_confirmed"] >= 1
               and gfcollect.owed(cq, today_g) == [])
+
+        print("\nGoogle's calendar (headless browser, experiment)")
+
+        def cal_body(start, prices, nights=7):
+            """A calendar response in the shape the 2026-11-14 probe got."""
+            items = []
+            for k, price in enumerate(prices):
+                dep = start + timedelta(days=k)
+                items.append([dep.isoformat(),
+                              (dep + timedelta(days=nights)).isoformat(),
+                              [[None, price], "tok"], 1])
+            payload = json.dumps([[None, [[1], None]], items])
+            return ")]}'\n\n123\n" + json.dumps(
+                [["wrb.fr", None, payload, None, None, None, "generic"]])
+
+        cal_start = today_g + timedelta(days=28)
+        sample = cal_body(cal_start, [30000, None, 31000])
+        check("a calendar response parses to (depart, return, price), unpriced dates skipped",
+              gfcalendar.parse(sample) == [
+                  (cal_start.isoformat(),
+                   (cal_start + timedelta(days=7)).isoformat(), 30000.0),
+                  ((cal_start + timedelta(days=2)).isoformat(),
+                   (cal_start + timedelta(days=9)).isoformat(), 31000.0)])
+        check("and anything else parses to nothing, never raises",
+              gfcalendar.parse("<html>blocked</html>") == []
+              and gfcalendar.parse(None) == []
+              and gfcalendar.parse(")]}'\n[[\"wrb.fr\",null,null]]") == [])
+
+        cc2 = db.connect(str(Path(tmp) / "calendar.db"))
+        prices = [40000] * 30 + [26000] + [41000] * 29     # one cheap day
+        seen_fetch = []
+
+        def fake_cal(route, depart, ret):
+            seen_fetch.append(route)
+            return cal_body(cal_start, prices) if route[1] == "SGN" else "<html>"
+
+        cal_routes = [("BLR", "SGN"), ("BLR", "DXB")]
+        rc = gfcalendar.run(cc2, today=today_g, fetch=fake_cal,
+                            rng=random.Random(1), pause=0, routes=cal_routes)
+        check(f"a scan stores raw and dates; a page without a calendar is recorded, not fatal ({rc})",
+              rc["scanned"] == 2 and rc["with_dates"] == 1 and rc["dates"] == 60
+              and rc["status"] == "ok"
+              and cc2.execute("SELECT count(*) FROM gf_cal_raw").fetchone()[0] == 2
+              and cc2.execute("SELECT count(*) FROM gf_cal_raw WHERE ok = 0"
+                              ).fetchone()[0] == 1)
+        check("the next scan starts with the route scanned least recently",
+              gfcalendar.due(cc2, cal_routes + [("BLR", "SIN")], today_g, 1)
+              == [("BLR", "SIN")])
+        cheap_day = (cal_start + timedelta(days=30)).isoformat()
+        check("a lead is the route's cheapest scanned date, well under its median",
+              gfcalendar.leads(cc2, cal_routes, today_g, 5)
+              == [("BLR", "SGN", cheap_day,
+                   (cal_start + timedelta(days=37)).isoformat())])
+        flat = db.connect(str(Path(tmp) / "calendar_flat.db"))
+        gfcalendar.run(flat, today=today_g, pause=0, routes=[("BLR", "SGN")],
+                       fetch=lambda *a: cal_body(cal_start, [40000] * 60))
+        check("a flat calendar gives no lead",
+              gfcalendar.leads(flat, [("BLR", "SGN")], today_g, 5) == [])
+        gfcollect.run(cc2, fetch=lambda *a: gpage(36000), today=today_g,
+                      rng=random.Random(3), pause=0, routes=cal_routes)
+        reasons_c = [r[0] for r in cc2.execute(
+            "SELECT reason FROM gf_quote WHERE depart_date = ?", (cheap_day,))]
+        check(f"gfcollect looks the lead up the normal way, as reason 'calendar' ({reasons_c})",
+              reasons_c == ["calendar"])
+        check("and it is not offered again once looked up",
+              gfcalendar.leads(cc2, cal_routes, today_g, 5) == [])
 
         print("\nGoogle refusals: retry once, never lose a find")
         co = db.connect(str(Path(tmp) / "owed.db"))

@@ -363,6 +363,16 @@ exactly what deal detection picks.
   discovery (each city's best-looking trip, then each one's second best),
   so one city's noisy Travelpayouts data can't take every slot.
   `gf_quote.reason` records which, to compare them later.
+- **Calendar scan (experiment since 2026-11-14):** `src/gfcalendar.py`, run 4
+  times a day by `calendar.yml`, opens Google's price graph in a headless
+  browser for a few routes (rotating) and stores ~60 departure-date prices per
+  route (`gf_cal_raw`, then `gf_cal_price`), one trip length (`GF_CAL_NIGHTS`)
+  about 4-12 weeks out. Google has gated its calendar requests to its own
+  page JavaScript since 2026-08, which is why a browser is needed. The
+  cheapest scanned dates (at most 90% of the route's calendar median) take
+  up to 40% of each run's discovery lookups, as `reason = 'calendar'`; they
+  are then judged and confirmed like any other lookup. It may break whenever
+  Google changes the page; the rest of the pipeline doesn't depend on it.
 - **Judging:** an unfiltered Google search carries Google's own price
   insights for that exact trip: its usual price, its typical range and about
   62 days of history. A fare at or below the bottom of that range, saving
