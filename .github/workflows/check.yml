@@ -13,7 +13,10 @@ permissions:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # ubuntu-latest became 26.04 in Nov 2026, which has no Python 3.9 (CI
+    # failed 2026-11-09). The laptop's launchd job still runs 3.9.6, so the
+    # tests stay on 3.9, on the previous image, until the laptop moves on.
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
