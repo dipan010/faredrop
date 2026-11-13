@@ -252,7 +252,10 @@ VERIFY_MAX_PER_RUN = 10
 # 80% were answered (vs ~70% at 13-15 a day), long runs held (20 of 24 in one
 # hour), and the cap was spent by ~06Z, leaving 18 h idle. Single refusals
 # (~20%) still happen daily; "block" means Google refusing wholesale.
-GF_DAILY_LOOKUPS = 80
+# 80 -> 60 on 2026-11-14: answers fell to 74% on Nov 10 and Nov 13 (74-89%
+# Nov 9-13, from 80-91% the week before), under the 75% line agreed 2026-10-30.
+# Raise again after a few days back above ~85%.
+GF_DAILY_LOOKUPS = 60
 GF_PER_RUN = 15
 # Google refuses quick repeat requests from one GitHub runner address (first
 # answered, the rest refused, 2026-10-12). So lookups are spaced out, and a
