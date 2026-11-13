@@ -80,8 +80,8 @@ GF_RAW_KEEP_DAYS = 14
 # Google's calendar (price graph) read by a headless browser, gfcalendar.py:
 # an experiment from 2026-11-14 (user's call), on a deliberately small window.
 # Each scan opens one route on a departure GF_CAL_ANCHOR_DAYS ahead and reads
-# the ~60 departure dates the graph shows (about 4-12 weeks out), for one
-# trip length. Routes rotate, least recently scanned first.
+# the departure dates the graph shows (first run: today to the end of next
+# month, ~48 dates), for one trip length. Routes rotate, least recently scanned first.
 GF_CAL_NIGHTS = 7
 GF_CAL_ANCHOR_DAYS = 35
 GF_CAL_ROUTES_PER_RUN = 6

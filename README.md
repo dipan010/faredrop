@@ -366,8 +366,8 @@ exactly what deal detection picks.
 - **Calendar scan (experiment since 2026-11-14):** `src/gfcalendar.py`, run 4
   times a day by `calendar.yml`, opens Google's price graph in a headless
   browser for a few routes (rotating) and stores ~60 departure-date prices per
-  route (`gf_cal_raw`, then `gf_cal_price`), one trip length (`GF_CAL_NIGHTS`)
-  about 4-12 weeks out. Google has gated its calendar requests to its own
+  route (`gf_cal_raw`, then `gf_cal_price`), one trip length (`GF_CAL_NIGHTS`),
+  from today to the end of next month. Google has gated its calendar requests to its own
   page JavaScript since 2026-08, which is why a browser is needed. The
   cheapest scanned dates (at most 90% of the route's calendar median) take
   up to 40% of each run's discovery lookups, as `reason = 'calendar'`; they
