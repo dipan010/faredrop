@@ -1,5 +1,5 @@
 {
- "_about": "International routes collected on GitHub Actions, per Indian origin. Built 2026-10-06 from a survey: /v1/city-directions per origin (non-Indian destinations only), keeping routes whose /v1/prices/calendar held at least one cached round-trip fare, most fares first. routes.py adds these to the route table; it never removes or re-activates a route. Edit by hand freely.",
+ "_about": "International routes collected on GitHub Actions, per Indian origin. Built 2026-10-06 from a survey: /v1/city-directions per origin (non-Indian destinations only), keeping routes whose /v1/prices/calendar held at least one cached round-trip fare, most fares first. routes.py adds these to the route table; it never removes or re-activates a route. Edit by hand freely. 2026-11-14: added the alert-city pairs to routes/gf_routes.json destinations whose calendar held at least one cached fare in a one-call survey (164 of 641 pairs), so Google discovery has leads for the new long-haul routes.",
  "routes": {
   "DEL": [
    "MOW",
@@ -18,7 +18,42 @@
    "AER",
    "BSZ",
    "NMA",
-   "NYC"
+   "NYC",
+   "HKT",
+   "MLE",
+   "DPS",
+   "SHJ",
+   "TYO",
+   "IST",
+   "CAN",
+   "KUL",
+   "SGN",
+   "LON",
+   "SIN",
+   "SHA",
+   "HKG",
+   "AUH",
+   "YTO",
+   "MIL",
+   "SYD",
+   "CAI",
+   "SEL",
+   "PAR",
+   "FRA",
+   "SFO",
+   "YVR",
+   "BJS",
+   "KWI",
+   "AMS",
+   "ROM",
+   "MCT",
+   "JNB",
+   "ZRH",
+   "VIE",
+   "AKL",
+   "DOH",
+   "NBO",
+   "MEL"
   ],
   "BOM": [
    "MOW",
@@ -39,7 +74,34 @@
    "NHA",
    "AER",
    "KZN",
-   "TAS"
+   "TAS",
+   "MLE",
+   "SHJ",
+   "SIN",
+   "IST",
+   "AUH",
+   "KUL",
+   "MEL",
+   "HKG",
+   "CAI",
+   "MCT",
+   "SEL",
+   "JNB",
+   "BJS",
+   "SHA",
+   "TYO",
+   "PAR",
+   "FRA",
+   "AMS",
+   "NYC",
+   "YTO",
+   "NBO",
+   "ROM",
+   "KWI",
+   "CAN",
+   "ZRH",
+   "PER",
+   "AKL"
   ],
   "BLR": [
    "MOW",
@@ -59,7 +121,26 @@
    "KZN",
    "VIE",
    "JED",
-   "IST"
+   "IST",
+   "KUL",
+   "KTM",
+   "SEL",
+   "LON",
+   "SYD",
+   "MUC",
+   "MAD",
+   "MEL",
+   "SIN",
+   "SHA",
+   "BCN",
+   "DOH",
+   "MCT",
+   "KWI",
+   "TYO",
+   "PAR",
+   "BJS",
+   "ROM",
+   "AKL"
   ],
   "MAA": [
    "CMB",
@@ -80,7 +161,20 @@
    "HKG",
    "HKT",
    "KZN",
-   "SGN"
+   "SGN",
+   "SHJ",
+   "MCT",
+   "MLE",
+   "LON",
+   "DOH",
+   "CHI",
+   "KUL",
+   "TYO",
+   "BAH",
+   "KWI",
+   "SEL",
+   "SYD",
+   "CAI"
   ],
   "HYD": [
    "LED",
@@ -104,7 +198,15 @@
    "OVB",
    "SAN",
    "SIN",
-   "SNN"
+   "SNN",
+   "PAR",
+   "AUH",
+   "DOH",
+   "SGN",
+   "MCT",
+   "KWI",
+   "HKT",
+   "NYC"
   ],
   "CCU": [
    "BKK",
@@ -126,7 +228,20 @@
    "HAN",
    "KRR",
    "PBH",
-   "SAI"
+   "SAI",
+   "HKT",
+   "SHA",
+   "SHJ",
+   "AUH",
+   "KWI",
+   "SIN",
+   "DPS",
+   "PAR",
+   "CAI",
+   "MCT",
+   "MLE",
+   "SFO",
+   "YTO"
   ],
   "COK": [
    "CMB",
@@ -147,7 +262,12 @@
    "KRK",
    "KUL",
    "KWI",
-   "PEW"
+   "PEW",
+   "DXB",
+   "AUH",
+   "SIN",
+   "HKT",
+   "IST"
   ],
   "AMD": [
    "BKK",
@@ -169,7 +289,11 @@
    "TCI",
    "UFA",
    "UTP",
-   "YVR"
+   "YVR",
+   "DXB",
+   "KWI",
+   "SIN",
+   "YTO"
   ],
   "GOI": [
    "MOW",
@@ -195,7 +319,22 @@
    "KJA",
    "KZN",
    "MNL",
-   "CMN"
+   "CMN",
+   "MCT",
+   "DPS",
+   "BAH",
+   "SIN",
+   "CAN",
+   "SFO",
+   "DOH",
+   "KWI",
+   "SYD",
+   "SHA",
+   "HKG",
+   "TYO",
+   "PAR",
+   "FRA",
+   "BJS"
   ],
   "PNQ": [
    "AYT",
@@ -205,7 +344,13 @@
    "BAK",
    "KUL",
    "MOW",
-   "SIN"
+   "SIN",
+   "HKT",
+   "MCT",
+   "CMB",
+   "KTM",
+   "PAR",
+   "SHA"
   ],
   "TRV": [
    "MOW",
@@ -231,7 +376,17 @@
    "SGN",
    "SYX",
    "TAS",
-   "UFA"
+   "UFA",
+   "KUL",
+   "DXB",
+   "DOH",
+   "SIN",
+   "KTM",
+   "LON",
+   "DFW",
+   "YVR",
+   "SHA",
+   "MAD"
   ],
   "CCJ": [
    "DOH",
@@ -256,7 +411,8 @@
    "DMM",
    "KWI",
    "BAK",
-   "BKK"
+   "BKK",
+   "KUL"
   ],
   "JAI": [
    "SHJ",
@@ -268,7 +424,9 @@
    "YMQ",
    "BKK",
    "JNB",
-   "OVB"
+   "OVB",
+   "KWI",
+   "MIL"
   ],
   "ATQ": [
    "KUL",
@@ -283,7 +441,11 @@
    "CEB",
    "DOH",
    "LON",
-   "VNO"
+   "VNO",
+   "AUH",
+   "YTO",
+   "CHI",
+   "YVR"
   ],
   "IXE": [
    "BAH",
@@ -323,7 +485,9 @@
    "CMB",
    "MCT",
    "MOW",
-   "SHJ"
+   "SHJ",
+   "AUH",
+   "MLE"
   ],
   "GAU": [
    "AUH",
