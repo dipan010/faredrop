@@ -555,21 +555,21 @@ def main():
               r12["status"].startswith("unavailable") and r12["checked"] == 0)
 
         c16 = db.connect(str(Path(tmp) / "allorigins.db"))
-        for i, origin in enumerate(("DEL", "GOI")):
+        for i, origin in enumerate(("IXE", "GOI")):
             c16.execute(
                 "INSERT INTO deal (observation_id, origin, destination,"
                 " depart_date, return_date, trip_class, price, baseline_p50,"
                 " discount_pct, kind, flags, fingerprint, detected_at)"
                 " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (i, origin, "DXB", far7, far7, 0, 10000.0, 30000.0,
-                 70.0 if origin == "DEL" else 50.0, "drop", "[]", f"a{i}", at(0)))
+                 70.0 if origin == "IXE" else 50.0, "drop", "[]", f"a{i}", at(0)))
         c16.commit()
         check("only the alert cities' deals are re-checked; the rest can't be sent",
               [d["origin"] for d in verify.due(c16, NOW)] == ["GOI"])
 
         print("\nonly the cities you fly from are emailed")
         c14 = db.connect(str(Path(tmp) / "origins.db"))
-        for i, origin in enumerate(("DEL", "GOI", "BLR")):
+        for i, origin in enumerate(("IXE", "GOI", "BLR")):
             c14.execute(
                 "INSERT INTO deal (observation_id, origin, destination,"
                 " depart_date, return_date, trip_class, price, baseline_p50,"
@@ -773,7 +773,7 @@ def main():
         c0 = db.connect(str(Path(tmp) / "review0.db"))
         gfcollect.run(c0, fetch=lambda *a: gpage(36000), today=today_g,
                       rng=random.Random(5), pause=0, routes=[("BLR", "DXB")],
-                      review_routes=[("DEL", "DXB"), ("PNQ", "DXB")])
+                      review_routes=[("IXE", "DXB"), ("CCJ", "DXB")])
         check(f"at the production share ({config.GF_REVIEW_SHARE}) review cities get"
               " no lookups when it is 0",
               config.GF_REVIEW_SHARE > 0 or "review" not in
@@ -784,13 +784,13 @@ def main():
         rv = gfcollect.run(cv, fetch=lambda *a: gpage(30000), today=today_g,
                            rng=random.Random(5), pause=0,
                            routes=[("BLR", "DXB")],
-                           review_routes=[("DEL", "DXB"), ("PNQ", "DXB")])
+                           review_routes=[("IXE", "DXB"), ("CCJ", "DXB")])
         reasons = [r[0] for r in cv.execute("SELECT reason FROM gf_quote")]
         check(f"a share of lookups explores other cities for review ({reasons.count('review')})",
               "review" in reasons and reasons.count("review") < len(reasons))
         gfcollect.run(cv, fetch=lambda *a: gpage(30200), today=today_g,
                       rng=random.Random(6), pause=0, routes=[("BLR", "DXB")],
-                      review_routes=[("DEL", "DXB"), ("PNQ", "DXB")])
+                      review_routes=[("IXE", "DXB"), ("CCJ", "DXB")])
         config.GF_REVIEW_SHARE = saved_share
         config.VERIFY_REQUIRE_CONFIRMED = True
         try:

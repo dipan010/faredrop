@@ -99,8 +99,10 @@ GF_TP_MIN_FARES = 5
 # not sent. BLR plus nearby, chosen 2026-10-06.
 # GOX (Goa's Mopa airport) added 2026-10-19: Google prices GOX->SHJ, while
 # GOI->SHJ priced nothing on every date tried. BOM (Mumbai) and CCU (Kolkata)
-# added 2026-10-23 at the user's request.
-ALERT_ORIGINS = {"BLR", "MAA", "COK", "HYD", "GOI", "GOX", "BOM", "CCU"}
+# added 2026-10-23 at the user's request. Delhi and North India (DEL, JAI,
+# LKO, ATQ, VNS) plus PNQ, AMD and TRV added 2026-11-14, also the user's call.
+ALERT_ORIGINS = {"BLR", "MAA", "COK", "HYD", "GOI", "GOX", "BOM", "CCU",
+                 "DEL", "JAI", "LKO", "ATQ", "VNS", "PNQ", "AMD", "TRV"}
 # Google searches airports; Travelpayouts files some under their city's code
 # (GOI = all of Goa). Its fares for the city feed discovery and the cross-check
 # for each such airport.

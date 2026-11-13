@@ -112,8 +112,9 @@ live price still clears the gates are emailed.
 
 **The quality bar filters.** A fare with more than `MAX_STOPS` (1) stops is
 never a deal, however cheap; it is not merely flagged. Deals are emailed
-only for departure cities in `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI, GOX
-(Goa's Mopa airport, since 2026-10-19), and BOM and CCU (since 2026-10-23)).
+only for departure cities in `ALERT_ORIGINS`: BLR, MAA, COK, HYD, GOI, GOX
+(Goa's Mopa airport, since 2026-10-19), BOM and CCU (since 2026-10-23), and
+DEL, JAI, LKO, ATQ, VNS, PNQ, AMD, TRV (since 2026-11-14).
 Every other origin is still collected and still shows in `digest.py`.
 
 **Condition on how far ahead you are booking.** A fare 200 days out and one
@@ -344,7 +345,7 @@ higher. A 12-fare comparison found Travelpayouts' ordinary prices within
 about 10% of Google, but its cheapest outliers unreliable, and those are
 exactly what deal detection picks.
 
-- **Watched:** `ALERT_ORIGINS` (BLR, MAA, COK, HYD, GOI, GOX, BOM, CCU) × the 25
+- **Watched:** `ALERT_ORIGINS` (16 airports in 15 cities) × the 51
   destinations in `routes/gf_routes.json`. Any trip of 2–21 nights departing 7–180
   days out.
 - **Which trips get looked up:** most come from *discovery*, recent

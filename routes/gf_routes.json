@@ -1,9 +1,15 @@
 {
- "_about": "Destinations the Google Flights collector (gfcollect.py) watches from every ALERT_ORIGINS city. Default 25 chosen 2026-10-12: places Indian travellers commonly fly. City codes (LON, PAR, TYO, SEL) cover all of a city's airports. Edit freely.",
+ "_about": "Destinations the Google Flights collector (gfcollect.py) watches from every ALERT_ORIGINS city. First 25 chosen 2026-10-12: places Indian travellers commonly fly. The second block (US, Canada, Africa, China, more Europe, Australia/NZ) added 2026-11-14 at the user's request. City codes (LON, PAR, TYO, SEL, NYC, CHI, WAS, YTO, BJS, SHA, ROM, MIL) cover all of a city's airports; NYC, BJS and YTO were checked live on 2026-11-14. Edit freely.",
  "destinations": ["DXB", "AUH", "SHJ", "DOH", "MCT", "BAH", "KWI",
                   "SIN", "KUL", "BKK", "HKT", "DPS", "SGN",
                   "CMB", "MLE", "KTM",
                   "HKG", "TYO", "SEL",
                   "LON", "PAR", "FRA", "AMS", "IST",
-                  "SYD"]
+                  "SYD",
+                  "NYC", "SFO", "CHI", "WAS", "DFW",
+                  "YTO", "YVR",
+                  "NBO", "JNB", "CAI", "ADD",
+                  "BJS", "SHA", "CAN",
+                  "ROM", "MIL", "ZRH", "MUC", "BCN", "MAD", "VIE", "PRG",
+                  "MEL", "PER", "BNE", "AKL"]
 }
