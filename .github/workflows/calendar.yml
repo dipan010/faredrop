@@ -8,8 +8,9 @@ name: calendar
 
 on:
   schedule:
-    # :37, clear of gf.yml's :17 and collect.yml's :47.
-    - cron: "37 2,8,14,20 * * *"
+    # :37, clear of gf.yml's :17 and collect.yml's :47. Twice a day since
+    # 2026-11-15 (was 4): Google answered only 56-71% of lookups Nov 13-15.
+    - cron: "37 2,14 * * *"
   workflow_dispatch:
 
 permissions:

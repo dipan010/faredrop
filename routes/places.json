@@ -1,0 +1,27 @@
+{
+ "_about": "Display names for the deal email (notify.py), by IATA airport or city code. GitHub's runners have no reference tables (data/*.json is git-ignored), so the email reads names from here. Missing codes just show the code. Edit freely.",
+ "places": {
+  "BLR": "Bengaluru", "MAA": "Chennai", "COK": "Kochi", "HYD": "Hyderabad",
+  "GOI": "Goa (Dabolim)", "GOX": "Goa (Mopa)", "BOM": "Mumbai", "CCU": "Kolkata",
+  "DEL": "Delhi", "JAI": "Jaipur", "LKO": "Lucknow", "ATQ": "Amritsar",
+  "VNS": "Varanasi", "PNQ": "Pune", "AMD": "Ahmedabad", "TRV": "Thiruvananthapuram",
+  "CCJ": "Kozhikode", "IXE": "Mangaluru", "CJB": "Coimbatore", "TRZ": "Tiruchirappalli",
+  "GAU": "Guwahati", "BBI": "Bhubaneswar",
+  "DXB": "Dubai", "AUH": "Abu Dhabi", "SHJ": "Sharjah", "DOH": "Doha",
+  "MCT": "Muscat", "BAH": "Bahrain", "KWI": "Kuwait City",
+  "SIN": "Singapore", "KUL": "Kuala Lumpur", "BKK": "Bangkok", "HKT": "Phuket",
+  "DPS": "Bali", "SGN": "Ho Chi Minh City", "HAN": "Hanoi",
+  "CMB": "Colombo", "MLE": "Malé", "KTM": "Kathmandu",
+  "HKG": "Hong Kong", "TYO": "Tokyo", "SEL": "Seoul",
+  "LON": "London", "PAR": "Paris", "FRA": "Frankfurt", "AMS": "Amsterdam",
+  "IST": "Istanbul", "SYD": "Sydney",
+  "NYC": "New York", "SFO": "San Francisco", "CHI": "Chicago",
+  "WAS": "Washington", "DFW": "Dallas", "YTO": "Toronto", "YVR": "Vancouver",
+  "NBO": "Nairobi", "JNB": "Johannesburg", "CAI": "Cairo", "ADD": "Addis Ababa",
+  "BJS": "Beijing", "SHA": "Shanghai", "CAN": "Guangzhou",
+  "ROM": "Rome", "MIL": "Milan", "ZRH": "Zurich", "MUC": "Munich",
+  "BCN": "Barcelona", "MAD": "Madrid", "VIE": "Vienna", "PRG": "Prague",
+  "MEL": "Melbourne", "PER": "Perth", "BNE": "Brisbane", "AKL": "Auckland",
+  "MOW": "Moscow"
+ }
+}

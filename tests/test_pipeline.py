@@ -431,13 +431,40 @@ def main():
         check(f"subject names the headline deal ({msg['Subject'][:40]}...)",
               "BLR" in msg["Subject"] and "DXB" in msg["Subject"])
         check("one deal, so no 'more' in the subject", "more" not in msg["Subject"])
-        check("body carries the price and the expectation",
-              "11,900" in body and "expected" in body)
+        check("body carries the price and how far below usual it is",
+              "11,900" in body and "below usual" in body)
         check("body links a dated Google Flights search",
               "google.com/travel/flights" in body and far7 in body)
         check("body keeps the bag/visa caveat", "transit visa" in body)
         check("it has an HTML alternative too",
               msg.get_body(preferencelist=("html",)) is not None)
+        page = msg.get_body(preferencelist=("html",)).get_content()
+        check("the HTML card shows the route, the fare, the struck usual price and a button",
+              "BLR" in page and "DXB" in page and "11,900" in page
+              and "line-through" in page and "See these dates on Google Flights" in page
+              and "google.com/travel/flights" in page)
+        check("with city names from routes/places.json",
+              "Bengaluru" in page and "Dubai" in page)
+        gdeal = {"origin": "GOX", "destination": "SHJ", "price": 30335.0,
+                 "baseline_p50": 36782.0, "discount_pct": 17.5,
+                 "abs_saving": 6447.0, "dtd": 12, "trip_class": 0,
+                 "depart_date": "2027-02-18", "return_date": "2027-02-25",
+                 "kind": "drop", "flags": "[]", "source": "google_flights",
+                 "gf_status": "still", "gf_price": 30335.0,
+                 "gf_airline": "Air Arabia", "gf_via": "",
+                 "range_low": 31500.0, "range_high": 50000.0}
+        gm = notify.compose([gdeal])
+        gpage_html = gm.get_body(preferencelist=("html",)).get_content()
+        gtext = gm.get_body(preferencelist=("plain",)).get_content()
+        check("a Google deal shows its typical range, airline, stops, nights and a soon chip",
+              "₹31,500–₹50,000" in gpage_html and "Air Arabia · non-stop" in gpage_html
+              and "7 nights" in gpage_html and "departs in 12 days" in gpage_html
+              and "Thu 18 Feb" in gpage_html and "Goa (Mopa)" in gpage_html)
+        check("and the plain-text part says the same, without HTML",
+              "Google's typical range ₹31,500–₹50,000" in gtext and "<" not in gtext)
+        check("names are escaped in the HTML",
+              "<script>" not in notify.compose([{**gdeal, "origin": "<script>"}])
+              .get_body(preferencelist=("html",)).get_content())
         # compose is pure: hand it plain dicts, get a message back. Asserted
         # on content, because a check that cannot fail is worse than none.
         plain = notify.compose([{

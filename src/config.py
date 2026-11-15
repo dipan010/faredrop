@@ -299,6 +299,9 @@ SMTP_USER = os.environ.get("SMTP_USER", "")
 SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD", "")
 ALERT_FROM = os.environ.get("ALERT_FROM", "") or SMTP_USER
 ALERT_TO = os.environ.get("ALERT_TO", "")
+# Optional: the private deal-review page, linked from the email footer. Set it
+# as the REVIEW_URL repository secret / in ~/.faredrop.env; empty hides it.
+REVIEW_URL = os.environ.get("REVIEW_URL", "")
 
 DB_PATH = "data/faredrop.db"
 

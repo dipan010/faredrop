@@ -45,6 +45,7 @@ jobs:
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       ALERT_TO: ${{ secrets.ALERT_TO }}
+      REVIEW_URL: ${{ secrets.REVIEW_URL }}
     steps:
       # Until FAREDROP_DB_KEY is set, the collector isn't set up: skip quietly
       # rather than fail four times a day. The key is set last, after the

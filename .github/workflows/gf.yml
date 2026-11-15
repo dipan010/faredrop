@@ -32,6 +32,7 @@ jobs:
       SMTP_USER: ${{ secrets.SMTP_USER }}
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       ALERT_TO: ${{ secrets.ALERT_TO }}
+      REVIEW_URL: ${{ secrets.REVIEW_URL }}
     steps:
       - uses: actions/checkout@v4
 
