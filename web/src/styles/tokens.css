@@ -1,0 +1,166 @@
+/* Design tokens. Values come from the canvas's .fd blocks via
+   docs/ui-spec.md §3.1; `npm run tokens` checks they still match.
+   Light on :root (and any [data-theme=light] element), dark under the
+   system preference unless light is forced, and on any [data-theme=dark]
+   element, so the gallery can show both themes side by side. */
+
+:root,
+[data-theme="light"] {
+  --bg: #F6F5F1;
+  --surface: #FFFFFF;
+  --ink: #15171C;
+  --muted: #5B606B;
+  --ink2: #3F444D;
+  --line: #E3E1DA;
+  --line2: #D5D2C9;
+  --line3: #EFEDE7;
+  --chip: #F1F0EC;
+  --track: #ECEAE4;
+  --surface2: #F7F6F2;
+  --chip2: #F3F1EA;
+  --accent: #0B6B66;
+  --accent-hover: #084F4B;
+  --accent-bg: #EEF5F4;
+  --range: #CFE3E1;
+  --save-bg: #FBEDE4;
+  --save: #9A3A09;
+  --eyebrow: #B4430B;
+  --save-strong: #7A2E07;
+  --good-bg: #E3F2EC;
+  --good: #13603F;
+  --good-dot: #1F8A5B;
+  --warn-bg: #FFF4D6;
+  --warn: #6B4A00;
+  --warn-icon: #8A6100;
+  --bad-bg: #FBE9E7;
+  --bad: #A12A1C;
+  --bad-line: #C2412D;
+  --faint: #82858C; /* G31: canvas #9A9DA4 is 2.7:1, under 3:1 for borders */
+  --switch-off: #C9C6BD;
+  --band-muted: #C9CBD0;
+  --band-input: #22252B;
+  --band-active: #2A2D34;
+  --muted2: #6B6F77;
+  --line4: #3A3D45;
+  --brand: #F08A4B;
+  --fresh-old: #C98A0B;
+  --ring-deal: #C2410C;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121316;
+    --surface: #1C1E23;
+    --ink: #ECEBE6;
+    --muted: #A3A7B0;
+    --ink2: #C9CBD0;
+    --line: #2E3138;
+    --line2: #3A3D45;
+    --line3: #26282E;
+    --chip: #26282E;
+    --track: #2A2D33;
+    --surface2: #18191D;
+    --chip2: #26282E;
+    --accent: #4FB3AC;
+    --accent-hover: #7FD0C9;
+    --accent-bg: #16302E;
+    --range: #2B5552;
+    --save-bg: #3A2215;
+    --save: #F5A877;
+    --eyebrow: #F5A877;
+    --save-strong: #F5A877;
+    --good-bg: #16301F;
+    --good: #7BD3A2;
+    --good-dot: #7BD3A2;
+    --warn-bg: #33280F;
+    --warn: #F2C66B;
+    --warn-icon: #F2C66B;
+    --bad-bg: #3A1A16;
+    --bad: #F28B7D;
+    --bad-line: #E0705F;
+    --faint: #7D818A;
+    --switch-off: #4A4D55;
+    --band-muted: #3F444D;
+    --band-input: #D9D8D2;
+    --band-active: #D2D1CB;
+    --muted2: #8A8E96;
+    --line4: #4A4D55;
+  --fresh-old: #C98A0B; /* G4: no dark value on the canvas */
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"],
+[data-theme="dark"] {
+  --bg: #121316;
+  --surface: #1C1E23;
+  --ink: #ECEBE6;
+  --muted: #A3A7B0;
+  --ink2: #C9CBD0;
+  --line: #2E3138;
+  --line2: #3A3D45;
+  --line3: #26282E;
+  --chip: #26282E;
+  --track: #2A2D33;
+  --surface2: #18191D;
+  --chip2: #26282E;
+  --accent: #4FB3AC;
+  --accent-hover: #7FD0C9;
+  --accent-bg: #16302E;
+  --range: #2B5552;
+  --save-bg: #3A2215;
+  --save: #F5A877;
+  --eyebrow: #F5A877;
+  --save-strong: #F5A877;
+  --good-bg: #16301F;
+  --good: #7BD3A2;
+  --good-dot: #7BD3A2;
+  --warn-bg: #33280F;
+  --warn: #F2C66B;
+  --warn-icon: #F2C66B;
+  --bad-bg: #3A1A16;
+  --bad: #F28B7D;
+  --bad-line: #E0705F;
+  --faint: #7D818A;
+  --switch-off: #4A4D55;
+  --band-muted: #3F444D;
+  --band-input: #D9D8D2;
+  --band-active: #D2D1CB;
+  --muted2: #8A8E96;
+  --line4: #4A4D55;
+  --fresh-old: #C98A0B; /* G4: no dark value on the canvas */
+  color-scheme: dark;
+}
+
+:root {
+  --font-head: 'Space Grotesk', system-ui, sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+
+  /* type scale, px (spec §3.4) */
+  --t12: 12px; --t13: 13px; --t14: 14px; --t15: 15px; --t16: 16px;
+  --t18: 18px; --t20: 20px; --t22: 22px; --t26: 26px; --t30: 30px;
+  --t36: 36px; --t40: 40px; --t52: 52px; --t64: 64px; --t88: 88px;
+
+  /* spacing (spec §3.5) */
+  --s1: 4px; --s1h: 6px; --s2: 8px; --s2h: 10px; --s3: 12px; --s3h: 14px;
+  --s4: 16px; --s5: 20px; --s6: 24px; --s7: 32px; --s8: 40px; --s9: 48px;
+  --s10: 72px;
+
+  /* radii */
+  --r-pill: 999px; --r-panel: 18px; --r-price: 16px; --r-card: 14px;
+  --r-option: 12px; --r-control: 10px; --r-tile: 8px; --r-check: 6px;
+  --r-track: 5px;
+
+  /* control heights */
+  --h52: 52px; --h48: 48px; --h44: 44px; --h40: 40px; --h36: 36px;
+
+  /* widths */
+  --w-content: 1200px; --w-feed: 1240px; --w-deal: 1080px;
+  --w-account: 880px; --w-text: 680px; --w-signin: 440px;
+
+  --shadow-card: 0 1px 2px rgba(21,23,28,.04), 0 12px 32px rgba(21,23,28,.08);
+  --shadow-hero: 0 18px 40px rgba(21,23,28,.12);
+  --shadow-bar: 0 8px 24px rgba(21,23,28,.08);
+  --shadow-knob: 0 1px 2px rgba(0,0,0,.2);
+}

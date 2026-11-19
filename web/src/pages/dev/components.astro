@@ -1,0 +1,512 @@
+---
+// /dev/components: every component in docs/ui-spec.md §4, each shown in a
+// light and a dark panel. Panels set data-theme, so both themes show at
+// once whatever the page theme is. Props come from the sample fixture.
+import Base from '../../layouts/Base.astro';
+import Logo from '../../components/Logo.astro';
+import SiteHeader from '../../components/SiteHeader.astro';
+import PhoneTabBar from '../../components/PhoneTabBar.astro';
+import Footer from '../../components/Footer.astro';
+import Stepper from '../../components/Stepper.astro';
+import EmailShell from '../../components/EmailShell.astro';
+import Button from '../../components/Button';
+import { Select, TextField } from '../../components/Fields';
+import ChipGroup, { RemovableChip, ToggleChip } from '../../components/Chips';
+import CodeInput from '../../components/CodeInput';
+import SwitchRow from '../../components/Switch';
+import OptionCards from '../../components/OptionCards';
+import DealCard from '../../components/DealCard';
+import { DateChips, Freshness, PriceBlock, SavingPill } from '../../components/Price';
+import PriceRangeBar from '../../components/PriceRangeBar';
+import { CheckList, Timeline } from '../../components/Lists';
+import BookingPanel from '../../components/BookingPanel';
+import WatchRoute from '../../components/WatchRoute';
+import { Banner, EmptyState, Skeleton } from '../../components/Feedback';
+import Toast from '../../components/Toast';
+import Accordion from '../../components/Accordion';
+import { PriceChange, SavedRow, WatchRow } from '../../components/Rows';
+import { DataTable, StatTile } from '../../components/Ops';
+import BarChart from '../../components/BarChart';
+import ThemeSwitch from '../../components/ThemeSwitch';
+import { FeedCardDemo, PhoneShare, SaveIcon, SaveSharePair, VoteDemo } from '../../components/demos';
+import { fixtureSource } from '../../data';
+import { ChevronLeft } from '../../components/icons';
+
+const src = fixtureSource();
+const snap = await src.snapshot();
+const now = src.now();
+const nowIso = now.toISOString();
+const byId = (p: string) => snap.deals.find((d) => d.deal_id.startsWith(p))!;
+const sgn = byId('BOM-SGN');
+const bkk = byId('GOX-BKK');
+const fra = byId('CCU-FRA');
+const bah = byId('BOM-BAH');
+const blr = byId('BLR-SGN');
+const cmb = { ...byId('GOI-CMB'), usual_is_estimate: true }; // G7: canvas shows "~₹39,000"
+const dxb = byId('GOI-DXB');
+// Sibling dates as the canvas shows them (G34: no prices yet, so no links).
+const sgnGroup = [{ depart_date: '2027-03-31', return_date: '2027-04-06' }, { depart_date: '2027-04-01', return_date: '2027-04-08' }];
+const cmbGroup = [['01-04', '01-11'], ['01-07', '01-12'], ['01-09', '01-12'], ['01-16', '01-23'], ['01-20', '01-24']].map(([a, b]) => ({ depart_date: `2027-${a}`, return_date: `2027-${b}` }));
+
+const T = ['light', 'dark'] as const;
+const cities = [
+  { value: 'all', label: 'All my cities' }, { value: 'BOM', label: 'Mumbai' }, { value: 'GOA', label: 'Goa' },
+  { value: 'BLR', label: 'Bengaluru' }, { value: 'CCU', label: 'Kolkata' },
+];
+const origins = [['BOM', 'Mumbai'], ['BLR', 'Bengaluru'], ['GOA', 'Goa'], ['CCU', 'Kolkata'], ['HYD', 'Hyderabad'], ['MAA', 'Chennai'], ['COK', 'Kochi']].map(([value, label]) => ({ value: value!, label: label! }));
+const regions = [
+  { value: 'gulf', label: 'Gulf & Middle East', sub: 'Dubai, Abu Dhabi, Doha, Muscat' },
+  { value: 'sea', label: 'South-East Asia', sub: 'Bangkok, Bali, Vietnam, Singapore' },
+  { value: 'near', label: 'Sri Lanka, Maldives & Nepal', sub: 'Colombo, Malé, Kathmandu' },
+  { value: 'east', label: 'East Asia', sub: 'Hong Kong, Tokyo, Seoul' },
+  { value: 'europe', label: 'Europe', sub: 'London, Paris, Frankfurt, Istanbul' },
+  { value: 'aus', label: 'Australia', sub: 'Sydney' },
+];
+const channels = [
+  { value: 'email', label: 'Instant email', sub: 'The hour a deal is confirmed' },
+  { value: 'weekly', label: 'Weekly digest', sub: 'The best of the week, every Sunday' },
+];
+const steps = [
+  { title: 'Your cities', sub: '2 of 5 cities' },
+  { title: 'Destinations', sub: '3 of 6 regions' },
+  { title: 'Alerts', sub: 'You can change all of this later' },
+];
+// Copy from docs/ui-spec.md Appendix A (P3 DealDetail, P14 Contact).
+const checks = [
+  { title: '30% under what this trip usually costs', detail: 'Normal fares for these dates run ₹30,500–44,000. This is ₹5,282 below even the cheapest of those.' },
+  { title: 'You save ₹10,730', detail: 'Against the usual ₹35,948, for one adult, return.' },
+  { title: 'Non-stop both ways', detail: 'We never show deals with more than one stop.' },
+  { title: 'A real, bookable fare', detail: 'Priced on a public flight search from India, not a foreign reseller.' },
+  { title: 'Still there an hour later', detail: 'We check every fare twice before telling anyone about it.' },
+];
+const timeline = [
+  { when: 'Day 1', title: 'Spotted', detail: 'A Mumbai to Vietnam fare looked low.' },
+  { when: 'Day 1', title: 'Compared', detail: 'Measured against what these dates normally cost.' },
+  { when: 'Day 1', title: 'Re-checked', detail: 'Priced again to make sure it is real.' },
+  { when: 'Today', title: 'Sent to you', detail: 'Because Mumbai is one of your cities.' },
+];
+const faqs = [
+  { q: 'The price was different when I tried to book', a: 'Fares change quickly, and sites sometimes show slightly different prices to signed-in visitors. If it was more than a few percent off, use “Price was different” on the alert and we’ll re-check it.' },
+  { q: 'How do you decide something is a deal?', a: 'We compare each fare with what that trip normally costs on those dates. It has to be below the cheapest normal price, save at least ₹4,000, have at most one stop, and still be there when we check again.' },
+  { q: 'Do you sell tickets?', a: 'No. You book directly with the airline or a travel site. We never take payment for flights.' },
+];
+const tiles = [
+  { label: 'Google lookups answered today', value: '41 / 60', note: 'Above the 75% line', tone: 'ok' as const },
+  { label: 'Live deals', value: '6', note: 'All confirmed by a second check', tone: 'ok' as const },
+  { label: 'Last collect run', value: '—', note: 'Not in the sample snapshot', tone: 'warn' as const },
+];
+const bars = [
+  { day: 'Mon', value: 92, label: '92%', detail: 'Monday: 55 of 60 lookups answered (92%)' },
+  { day: 'Tue', value: 88, label: '88%', detail: 'Tuesday: 53 of 60 lookups answered (88%)' },
+  { day: 'Wed', value: 70, label: '70%', detail: 'Wednesday: 42 of 60 lookups answered (70%)' },
+  { day: 'Thu', value: 81, label: '81%', detail: 'Thursday: 49 of 60 lookups answered (81%)' },
+  { day: 'Fri', value: 68, label: '68%', detail: 'Friday: 41 of 60 lookups answered (68%)' },
+];
+const sections = [
+  ['c1', 'C1 Logo'], ['c2', 'C2 SiteHeader'], ['c3', 'C3 PhoneTabBar'], ['c4', 'C4 Footer'], ['c5', 'C5 Button'],
+  ['c6', 'C6 ToggleChip'], ['c7', 'C7 Select, C8 TextField'], ['c9', 'C9 CodeInput'], ['c10', 'C10 Switch'],
+  ['c11', 'C11 OptionCard'], ['c12', 'C12 Stepper'], ['c13', 'C13 DealCard'], ['c14', 'C14–C17 Price, saving, freshness, dates'],
+  ['c18', 'C18 PriceRangeBar'], ['c19', 'C19 CheckList, C20 Timeline'], ['c21', 'C21 BookingPanel'], ['c22', 'C22 WatchRoute'],
+  ['c23', 'C23 Banner'], ['c24', 'C24 Toast'], ['c25', 'C25 EmptyState, C26 Skeleton'], ['c27', 'C27 Accordion'],
+  ['c28', 'C28 SavedRow, WatchRow'], ['c29', 'C29 StatTile, BarChart, DataTable'], ['c30', 'C30 ThemeSwitch'], ['c31', 'C31 EmailShell'],
+];
+---
+<Base title="Components · faredrop dev">
+  <style is:global>
+    .g { max-width: 1440px; margin: 0 auto; padding: 32px 24px 80px; display: flex; flex-direction: column; gap: 40px; }
+    .g-top { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; }
+    .g-top h1 { font-family: var(--font-head); font-size: 36px; letter-spacing: -0.02em; }
+    .g-toc { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 13px; }
+    .g-sec { display: flex; flex-direction: column; gap: 12px; scroll-margin-top: 16px; }
+    .g-sec > h2 { font-family: var(--font-head); font-size: 22px; }
+    .g-sec > p { color: var(--muted); font-size: 14px; max-width: 760px; }
+    .g-pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 560px), 1fr)); gap: 16px; }
+    .g-panel { background: var(--bg); color: var(--ink); border: 1px solid var(--line); border-radius: 16px; padding: 20px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+    .g-tag { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .g-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+    .g-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: 16px; }
+    .g-grid--mini { grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); }
+    .g-phone { width: min(100%, 390px); background: var(--bg); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; position: relative; display: flex; flex-direction: column; }
+    .g-phone__body { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+    .g-bleed { margin: 0 -20px; }
+    .g-email { overflow-x: auto; border-radius: 12px; }
+    .g-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); gap: 16px; align-items: start; }
+  </style>
+  <main class="g">
+    <div class="g-top">
+      <h1>Components</h1>
+      <span class="fd-muted">docs/ui-spec.md §4 · fixture clock {snap.generated_at}</span>
+      <span style="margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 13px;" class="fd-muted">Page theme <ThemeSwitch client:load /></span>
+    </div>
+    <nav aria-label="Components" class="g-toc">{sections.map(([id, name]) => <a href={`#${id}`}>{name}</a>)}</nav>
+
+    <section class="g-sec" id="c1" aria-labelledby="c1-h">
+      <h2 id="c1-h">C1 Logo</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t}</span>
+          <div class="g-row"><Logo size={28} /><Logo size={28} word="lg" /><Logo size={24} word="sm" /></div>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c2" aria-labelledby="c2-h">
+      <h2 id="c2-h">C2 SiteHeader</h2>
+      <p>Four variants. The theme button (C30) is added to each, since the canvas has none (G33).</p>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t} · public, app, minimal, ops</span>
+          <div class="g-bleed"><SiteHeader navLabel={`public header, ${t}`} variant="public" /></div>
+          <div class="g-bleed"><SiteHeader navLabel={`app header, ${t}`} variant="app" current="deals" savedCount={3} user={{ initial: 'P', alertsOn: true }} /></div>
+          <div class="g-bleed"><SiteHeader navLabel={`minimal header, ${t}`} variant="minimal" aside={{ text: 'Already a member?', label: 'Sign in', href: '/signin' }} /></div>
+          <div class="g-bleed"><SiteHeader navLabel={`ops header, ${t}`} variant="ops" current="pipeline" asOf="Data as of 15 Nov 2026 · team only" /></div>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c3" aria-labelledby="c3-h">
+      <h2 id="c3-h">C3 PhoneTabBar</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t}</span>
+          <div class="g-phone"><PhoneTabBar current="deals" navLabel={`Tab bar on Deals, ${t}`} /></div>
+          <div class="g-phone"><PhoneTabBar current="saved" navLabel={`Tab bar on Saved, ${t}`} /></div>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c4" aria-labelledby="c4-h">
+      <h2 id="c4-h">C4 Footer</h2>
+      <div class="g-pair">{T.map((t) => (<div class="g-panel" data-theme={t}><span class="g-tag">{t}</span><div class="g-bleed"><Footer /></div></div>))}</div>
+    </section>
+
+    <section class="g-sec" id="c5" aria-labelledby="c5-h">
+      <h2 id="c5-h">C5 Button</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t} · kinds</span>
+          <div class="g-row">
+            <Button>Send code</Button><Button kind="accent">Start watching fares</Button><Button kind="outline">Clear filters</Button>
+            <Button kind="secondary">Back</Button><Button kind="text">← Change email</Button><Button kind="danger">Delete my account</Button>
+            <Button kind="danger-outline" size={44}>Cancel Plus</Button><Button kind="brand" size={44} href="/plus">Keep Plus</Button>
+          </div>
+          <span class="g-tag">sizes 52 / 48 / 44 / 40 / 36, disabled, block</span>
+          <div class="g-row">
+            <Button size={52}>Sign in</Button><Button size={48}>Continue</Button><Button size={44} kind="outline">Show more deals</Button>
+            <Button size={40}>See deal</Button><Button size={36} kind="secondary">Undo</Button><Button disabled>Continue</Button>
+          </div>
+          <Button size={52} block href="/start">Get deal alerts, free</Button>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c6" aria-labelledby="c6-h">
+      <h2 id="c6-h">C6 ToggleChip</h2>
+      <p>Single-select (feed cities), multi-select with a maximum (setup: Free 1, Plus 5; at the maximum the rest are disabled), filter with counts (ops), and removable (My alerts).</p>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t}</span>
+          <ChipGroup client:visible label="Departure city" options={cities} initial={['all']} />
+          <ChipGroup client:visible label="Where do you fly from" mode="multi" size={44} max={5} maxNote="5 of 5 cities. Remove one to swap." options={origins} initial={['BOM', 'GOA', 'BLR', 'CCU', 'HYD']} />
+          <ChipGroup client:visible label="Verdict filter" mode="filter" options={[{ value: 'all', label: 'All', count: 12 }, { value: 'good', label: 'Great deal', count: 7 }, { value: 'diff', label: 'Price was different', count: 3 }]} initial={['all']} />
+          <div class="fd-chips"><RemovableChip label="Mumbai" /><RemovableChip label="Goa" /><ToggleChip label="Single chip, off" pressed={false} /></div>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c7" aria-labelledby="c7-h">
+      <h2 id="c7-h">C7 Select, C8 TextField</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t}</span>
+          <div class="g-cols">
+            <Select label="I fly from" size={52} options={origins.map((o) => o.label)} />
+            <TextField label="Email" type="email" size={52} placeholder="you@example.com" autocomplete="email" />
+            <Select label="Trip length" options={['Any (2–21 nights)', 'Short breaks (2–5 nights)', 'About a week', 'Long holidays (2 weeks+)']} />
+            <Select label="Only deals that save at least" size={44} options={['₹4,000', '₹7,500', '₹10,000', '₹20,000']} />
+            <TextField label="Email" type="email" value="priya@" error="Enter a full email address, like you@example.com." />
+          </div>
+          <div class="g-row"><Select inline label="Sort" size={40} options={[{ value: 'saving', label: 'Biggest saving' }, { value: 'price', label: 'Lowest price' }, { value: 'soon', label: 'Soonest departure' }]} /></div>
+          <TextField label="Message" type="textarea" placeholder="If it's about a deal, tell us the route and dates." />
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c9" aria-labelledby="c9-h">
+      <h2 id="c9-h">C9 CodeInput</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t} · empty, part-filled (paste fills all six)</span>
+          <div style="max-width: 368px; display: flex; flex-direction: column; gap: 12px;">
+            <CodeInput client:visible />
+            <CodeInput client:visible initial="4812" />
+          </div>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c10" aria-labelledby="c10-h">
+      <h2 id="c10-h">C10 Switch</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t} · on, off, plan-gated</span>
+          <div class="fd-panel" style="gap: 4px">
+            <h2 style="margin-bottom: 10px">How we tell you</h2>
+            <SwitchRow client:visible label="Weekly digest" sub="The best of the week, every Sunday" initial />
+            <SwitchRow client:visible label="Gulf & Middle East" sub="Dubai, Abu Dhabi, Doha, Muscat" />
+            <SwitchRow client:visible label="Instant email" sub="Plus only. The hour a deal is confirmed." disabled />
+          </div>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c11" aria-labelledby="c11-h">
+      <h2 id="c11-h">C11 OptionCard</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t} · checkbox (regions), radio (channels)</span>
+          <OptionCards client:visible label="Where would you go?" options={regions} initial={['gulf', 'sea', 'europe']} />
+          <OptionCards client:visible label="How should we tell you?" control="radio" options={channels} initial={['weekly']} />
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c12" aria-labelledby="c12-h">
+      <h2 id="c12-h">C12 Stepper</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t} · desktop list, phone bars</span>
+          <div class="g-cols"><Stepper steps={steps} current={2} /><div class="g-phone" style="padding: 16px"><Stepper steps={steps} current={2} variant="bars" /></div></div>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c13" aria-labelledby="c13-h">
+      <h2 id="c13-h">C13 DealCard</h2>
+      <p>feed (save and Not interested work; hiding shows the Undo toast), compact (phone row), mini (landing), teaser (landing hero), row (ended page).</p>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t} · feed</span>
+          <div class="g-grid">
+            <FeedCardDemo client:visible deal={sgn} nowIso={nowIso} group={sgnGroup} saved />
+            <FeedCardDemo client:visible deal={fra} nowIso={nowIso} />
+            <FeedCardDemo client:visible deal={cmb} nowIso={nowIso} group={cmbGroup} />
+          </div>
+          <span class="g-tag">compact</span>
+          <div class="g-phone"><div class="g-phone__body">
+            <p class="fd-muted" style="font-size: 13px; margin: 0 2px">6 deals from your cities</p>
+            <DealCard deal={bah} variant="compact" now={now} />
+            <DealCard deal={bkk} variant="compact" now={now} />
+          </div></div>
+          <span class="g-tag">mini, teaser, row</span>
+          <div class="g-grid g-grid--mini">
+            <DealCard deal={bah} variant="mini" now={now} />
+            <DealCard deal={blr} variant="mini" now={now} />
+          </div>
+          <div style="max-width: 396px"><DealCard deal={sgn} variant="teaser" now={now} /></div>
+          <DealCard deal={bah} variant="row" now={now} />
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c14" aria-labelledby="c14-h">
+      <h2 id="c14-h">C14–C17 PriceBlock, SavingPill, Freshness, DateChips</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t}</span>
+          <div class="g-row" style="justify-content: space-between; align-items: flex-end">
+            <PriceBlock price={sgn.price} usual={sgn.usual} variant="phone" />
+            <PriceBlock price={fra.price} usual={fra.usual} variant="large" saving={fra.saving} pct={fra.saving_pct} />
+          </div>
+          <PriceBlock price={cmb.price} usual={cmb.usual} estimate variant="inline" />
+          <div class="g-row">
+            <SavingPill saving={sgn.saving} pct={sgn.saving_pct} />
+            <SavingPill saving={bah.saving} pct={bah.saving_pct} format="off" />
+            <SavingPill saving={sgn.saving} pct={sgn.saving_pct} format="you-save" size="lg" />
+            <SavingPill saving={cmb.saving} pct={cmb.saving_pct} estimate />
+            <span class="fd-pill fd-pill--good">Price checked twice</span>
+            <span class="fd-pill fd-pill--neutral">Last checked yesterday</span>
+          </div>
+          <div class="g-row">
+            <Freshness checkedAt={bkk.checked_at} now={now} />
+            <Freshness checkedAt={fra.checked_at} now={now} />
+            <Freshness checkedAt="2026-11-13T10:19:40Z" now={now} stale />
+          </div>
+          <DateChips dates={cmbGroup} />
+          <DateChips dates={sgnGroup} variant="page" />
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c18" aria-labelledby="c18-h">
+      <h2 id="c18-h">C18 PriceRangeBar</h2>
+      <p>range (BOM-SGN), broken (GOX-BKK: the range tops out at ₹3,05,000, so the scale is cut), none (CCU-FRA: no range, two bars), and the phone size.</p>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t}</span>
+          <section class="fd-panel" style="gap: 20px">
+            <div><h2>Where this price sits</h2><p class="fd-panel__sub">What this trip normally costs on these dates, and where today's fare lands.</p></div>
+            <PriceRangeBar price={sgn.price} usual={sgn.usual} rangeLow={sgn.range_low} rangeHigh={sgn.range_high} />
+          </section>
+          <section class="fd-panel" style="gap: 20px">
+            <div><h2>Where this price sits</h2><p class="fd-panel__sub">The normal range for these dates is unusually wide, so the scale is cut at ₹60,000.</p></div>
+            <PriceRangeBar price={bkk.price} usual={bkk.usual} rangeLow={bkk.range_low} rangeHigh={bkk.range_high} />
+            <p class="fd-muted" style="font-size: 13px">The top of the range comes from long trips with several airlines. We judge this fare against the usual price and the cheapest normal fare, not the top.</p>
+          </section>
+          <section class="fd-panel" style="gap: 20px">
+            <div><h2>How it compares</h2><p class="fd-panel__sub">We know the usual price for these dates but not the full range, so this is a straight comparison.</p></div>
+            <PriceRangeBar price={fra.price} usual={fra.usual} rangeLow={fra.range_low} rangeHigh={fra.range_high} />
+            <p class="fd-note">Prices can differ a little between sites, and a signed-in browser sometimes shows a lower one. If you see a different price, tell us from the booking panel.</p>
+          </section>
+          <div class="g-phone"><div class="g-phone__body">
+            <section class="fd-panel" style="padding: 16px; gap: 12px"><span style="font-weight: 600">Where this price sits</span>
+              <PriceRangeBar price={sgn.price} usual={sgn.usual} rangeLow={sgn.range_low} rangeHigh={sgn.range_high} compact />
+            </section>
+          </div></div>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c19" aria-labelledby="c19-h">
+      <h2 id="c19-h">C19 CheckList, C20 Timeline</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t}</span>
+          <section class="fd-panel"><h2>Why it counts as a deal</h2><CheckList items={checks} /></section>
+          <section class="fd-panel"><h2>Why we sent it</h2><Timeline steps={timeline} /></section>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c21" aria-labelledby="c21-h">
+      <h2 id="c21-h">C21 BookingPanel</h2>
+      <p>Desktop: inline expand (shown open, with the canvas's airline row; it is off by default per G9). Phone: bottom sheet with a focus trap; open it from the sticky bar.</p>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t}</span>
+          <div class="g-cols">
+            <section class="fd-panel fd-panel--side">
+              <h2>Flight</h2>
+              <div class="fd-facts">
+                <div><span>Airline</span><span>Etihad</span></div>
+                <div><span>Stops</span><span>1 stop each way, in Abu Dhabi</span></div>
+                <div><span>Out</span><span>Sun 24 Jan 2027</span></div>
+                <div><span>Back</span><span>Thu 28 Jan 2027</span></div>
+              </div>
+              <BookingPanel client:visible deal={fra} initialOpen airlineLink />
+              <SaveSharePair client:visible />
+              <p class="fd-small">You book directly with the airline or travel site. Fares like this usually last a few days.</p>
+            </section>
+            <div class="g-phone" style="min-height: 360px; justify-content: flex-end">
+              <div class="g-phone__body" style="flex: 1"><div class="g-row" style="justify-content: space-between"><a class="fd-icon-btn" href="/deals" aria-label="Back to deals"><ChevronLeft size={20} /></a><span style="font-weight: 600">BOM → SGN</span><PhoneShare client:visible /></div></div>
+              <div class="fd-savebar"><SaveIcon client:visible initialSaved /><BookingPanel client:visible deal={sgn} variant="sheet" contained /></div>
+            </div>
+          </div>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c22" aria-labelledby="c22-h">
+      <h2 id="c22-h">C22 WatchRoute</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t} · form, watching, phone, locked (Free)</span>
+          <div class="g-cols">
+            <WatchRoute client:visible origin="CCU" destination="FRA" target={60000} />
+            <WatchRoute client:visible origin="CCU" destination="FRA" target={60000} initialWatching />
+            <WatchRoute client:visible origin="BOM" destination="SGN" target={28000} variant="phone" />
+            <WatchRoute client:visible origin="BOM" destination="SGN" target={28000} locked />
+          </div>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c23" aria-labelledby="c23-h">
+      <h2 id="c23-h">C23 Banner</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t} · error, stale, offline, info, note, band</span>
+          <Banner tone="error" title="We couldn't refresh deals" body="Showing what we had at 09:40 today. Check prices before booking." action={{ label: 'Try again' }} />
+          <Banner tone="warn" body={<>Prices below were last checked <strong>2 days ago</strong>. We're catching up; check the price before you book.</>} />
+          <div class="g-phone"><Banner tone="offline" body="You're offline · last update 09:40" action={{ label: 'Retry' }} /></div>
+          <Banner tone="info" title="Paused until 14 Dec" body="No emails until 14 Dec, then back to normal" />
+          <Banner tone="note" body="Draft for design review. The final policy needs legal review, including India's Digital Personal Data Protection Act." />
+          <Banner tone="band" title="Plus trial · 9 days left" body="After that you move to Free: one city and a weekly email, no instant alerts." action={{ label: 'Keep Plus', href: '/plus' }} />
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c24" aria-labelledby="c24-h">
+      <h2 id="c24-h">C24 Toast</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t}</span>
+          <Toast message="Hidden Mumbai → Bahrain. We'll show you fewer trips like it." action={{ label: 'Undo', onClick: () => {} }} />
+          <div class="g-phone"><div class="g-phone__body"><Toast small message="Link copied. Paste it into any chat." /></div></div>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c25" aria-labelledby="c25-h">
+      <h2 id="c25-h">C25 EmptyState, C26 Skeleton</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t}</span>
+          <EmptyState title="No deals match right now" body="Try another city or trip length. We'll message you the moment something fits." action={{ label: 'Clear filters', kind: 'outline' }} />
+          <EmptyState solid title="This deal is long gone" body="Fares like it come back. Here's what's cheap from your cities today." action={{ label: "See today's deals", href: '/deals' }} />
+          <EmptyState art title="Nothing saved yet" body="Tap the bookmark on a deal to keep it here." />
+          <div class="g-grid"><Skeleton /><Skeleton /></div>
+          <Skeleton shape="block" />
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c27" aria-labelledby="c27-h">
+      <h2 id="c27-h">C27 Accordion</h2>
+      <div class="g-pair">{T.map((t) => (<div class="g-panel" data-theme={t}><span class="g-tag">{t}</span><Accordion client:visible items={faqs} /></div>))}</div>
+    </section>
+
+    <section class="g-sec" id="c28" aria-labelledby="c28-h">
+      <h2 id="c28-h">C28 SavedRow, WatchRow</h2>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t} · live, ended, price changed up / down</span>
+          <SavedRow deal={sgn} note="Same price as when you saved it" />
+          <SavedRow deal={dxb} note="Deal ended" href={`/deals/${dxb.deal_id}`} />
+          <section class="fd-card" style="padding: 18px; display: flex; flex-direction: column; gap: 10px">
+            <div class="g-row" style="justify-content: space-between"><span style="font-weight: 600">Goa → Colombo · 5–12 Jan</span><span><s class="fd-muted" style="font-size: 14px">₹32,403</s> <strong style="font-family: var(--font-head); font-size: 22px">₹33,274</strong></span></div>
+            <PriceChange was={32403} now={33274} similarHref="/deals" />
+          </section>
+          <PriceChange was={30065} now={28644} />
+          <WatchRow route="Mumbai → Ho Chi Minh City" status="Now ₹25,218" target={28000} />
+          <WatchRow route="Goa → Colombo" status="Closest so far ₹30,065" target={30000} />
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c29" aria-labelledby="c29-h">
+      <h2 id="c29-h">C29 StatTile, BarChart, DataTable</h2>
+      <p>Sample numbers for the layout only (the ops pages read real ones in phase 8).</p>
+      <div class="g-pair">{T.map((t) => (
+        <div class="g-panel" data-theme={t}><span class="g-tag">{t}</span>
+          <div class="fd-tiles">{tiles.map((x) => <StatTile {...x} />)}</div>
+          <section class="fd-panel" style="padding: 20px"><h2 style="font-size: 16px">Google lookups answered, by day</h2><BarChart client:visible bars={bars} /></section>
+          <section class="fd-panel" style="padding: 20px">
+            <h2 style="font-size: 16px">Discovery by city</h2>
+            <DataTable label="Lookups, candidates and deals by city" template="140px minmax(0, 1fr) 90px 70px" phoneTemplate="minmax(0, 1fr) minmax(0, 1fr) 76px 44px"
+              columns={[{ key: 'name', label: 'City' }, { key: 'lookups', label: 'Lookups', bar: true }, { key: 'cand', label: 'Candidates', num: true }, { key: 'deals', label: 'Deals', num: true }]}
+              rows={[{ name: 'Mumbai', lookups: 120, cand: 9, deals: 2 }, { name: 'Goa', lookups: 96, cand: 7, deals: 2 }, { name: 'Kolkata', lookups: 64, cand: 3, deals: 1 }]} />
+          </section>
+        </div>))}
+      </div>
+    </section>
+
+    <section class="g-sec" id="c30" aria-labelledby="c30-h">
+      <h2 id="c30-h">C30 ThemeSwitch</h2>
+      <p>Cycles same-as-device, light and dark; the choice is kept in this browser only (G33). Not on the canvas.</p>
+      <div class="g-pair">{T.map((t) => (<div class="g-panel" data-theme={t}><span class="g-tag">{t}</span><div class="g-row"><ThemeSwitch client:visible /></div></div>))}</div>
+    </section>
+
+    <section class="g-sec" id="c31" aria-labelledby="c31-h">
+      <h2 id="c31-h">C31 EmailShell</h2>
+      <p>Light only, inline hex, table layout (spec §3.3). Shown once: emails don't follow the site theme. Where emails render is phase 7's decision (G47).</p>
+      <div class="g-email">
+        <EmailShell kind="deal" preheader="Mumbai → Ho Chi Minh City, ₹25,218 return (30% off)" eyebrow="New deal from Mumbai"
+          title="Ho Chi Minh City for ₹25,218 return" sub="Usually ₹35,948. You save ₹10,730." footer="You're getting this because Mumbai is one of your cities.">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="font-family: Inter, system-ui, sans-serif; color: #15171C;">
+            <tr>
+              {[['When', '5–11 Apr'], ['Trip', '6 nights'], ['Flight', 'Vietjet, non-stop']].map(([k, v], i) => (
+                <td style={`padding: 0 ${i < 2 ? 8 : 0}px 22px 0; width: 33%;`}><div style="background: #F6F5F1; border-radius: 10px; padding: 12px;"><div style="font-size: 12px; color: #5B606B;">{k}</div><div style="font-weight: 600; margin-top: 2px;">{v}</div></div></td>
+              ))}
+            </tr>
+            <tr><td colspan="3" style="padding-bottom: 22px;"><a href="/deals/BOM-SGN-2027-04-05-2027-04-11" style="display: block; height: 54px; line-height: 54px; text-align: center; border-radius: 10px; background: #0B6B66; color: #FFFFFF; font-weight: 600; font-size: 16px; text-decoration: none;">See the deal and book</a></td></tr>
+            <tr><td colspan="3" style="border-top: 1px solid #EFEDE7; padding-top: 18px;">
+              <div style="font-size: 14px; font-weight: 600; padding-bottom: 10px;">Was this useful?</div>
+              <div style="--surface:#FFFFFF; --ink:#15171C; --line2:#D5D2C9; --muted:#5B606B; --accent:#0B6B66; color-scheme: light;"><VoteDemo client:visible /></div>
+            </td></tr>
+          </table>
+        </EmailShell>
+      </div>
+    </section>
+  </main>
+</Base>

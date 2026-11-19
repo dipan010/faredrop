@@ -1390,14 +1390,53 @@ Checked first:
 ### Design system
 
 - **G31 · spec:** `--faint` `#9A9DA4` on white is 2.7:1, under WCAG 1.4.11's
-  3:1 for checkbox and radio borders. Resolution: darken the light `--faint` to
-  `#8A8D94` (3.3:1) for borders. Phase 1 verifies the value with axe.
+  3:1 for checkbox and radio borders. Resolution (phase 1): light `--faint` is
+  `#82858C`, 3.24:1 or better on surface, bg, surface2 and chip. (`#8A8D94`,
+  first proposed, is 3.05:1 on bg and 2.91:1 on chip.) axe only checks text
+  contrast, so `web/scripts/check-tokens.mjs` verifies it.
 - **G32 · spec:** fonts load from Google Fonts on the canvas. Resolution:
   self-host Inter and Space Grotesk (OFL, free) from `web/public/fonts`, so
   Pages serves everything and no third party sees visits.
 - **G33 · spec:** LLD §9 asks for a manual theme switch, but no board shows
   one. Resolution: a small icon button in `SiteHeader` and in My alerts →
   Account, cycling system / light / dark.
+
+### Found in phase 1 (2026-11-19)
+
+- **G46 · spec:** no board states the price-bar scale. Resolution: max =
+  ceil(range_high × 1.08, ₹2,000), or ceil(usual × 1.1, ₹5,000) when
+  range_high > 2 × usual (the cut "broken" bar). min = floor(price − 0.18 ×
+  (max − price), ₹5,000). This reproduces both boards (20,000–48,000; cut at
+  60,000). It lives in `web/src/components/PriceRangeBar.tsx`.
+- **G47 · lld:** where emails are rendered (`notify.py` or the Worker) is open.
+  Resolution: phase 1 ships `EmailShell.astro` as a light-only, inline-hex,
+  table preview. Phase 7 picks the renderer and ports it.
+- **G48 · spec:** the DarkMode board's logo arrow is `#C2410C`, but the other
+  themed boards keep `#F08A4B` in dark. Resolution: keep `#F08A4B`
+  (`--brand`) in both themes.
+- **G49 · spec:** the plan says non-interactive components are "plain Astro".
+  Phase 2's feed is a client-side island, and Astro components can't render
+  inside one. Resolution: shared components are Preact `.tsx`. With no
+  `client:` directive they ship no JS. Page chrome stays `.astro`.
+- **G50 · lld:** LLD §9 says `theme.css`; the plan and `web/` use
+  `tokens.css`. Resolution: say `tokens.css` in the LLD.
+- **G51 · spec:** strings with no board, written in phase 1:
+  - WatchRoute locked state: "Route watches are part of Plus." / "See Plus";
+  - the email field error: "Enter a full email address, like
+    you@example.com.";
+  - the ThemeSwitch labels: "Theme: same as device / light / dark. Switch to
+    …";
+  - aria-only labels: "Loading deals", "6-digit code", "Was" before an ended
+    saved price.
+
+  Resolution: the owner approves or rewords them before phase 2 copy is
+  final.
+- **G52 · lld:** LLD §5 gives no response bodies. `web/src/data/types.ts`
+  proposes `DealsPage`, `DealDetail`, `Meta`, `Me`, `SavedItem` and `Watch`.
+  Resolution: phase 5 writes them into LLD §5 or changes the types.
+- **G53 · spec:** `/dev/components` would deploy with the site in phase 4,
+  including the fixture's CCU-FRA, which the owner rated wrong. Resolution:
+  phase 4 excludes `src/pages/dev/` from production builds.
 
 ## Appendix A. Copy, verbatim, per page
 

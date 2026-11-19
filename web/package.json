@@ -1,0 +1,30 @@
+{
+  "name": "faredrop-web",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.23.4"
+  },
+  "scripts": {
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev",
+    "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview",
+    "check": "ASTRO_TELEMETRY_DISABLED=1 astro check",
+    "tokens": "node scripts/check-tokens.mjs",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "@astrojs/preact": "6.1.1",
+    "@fontsource/inter": "5.3.0",
+    "@fontsource/space-grotesk": "5.3.0",
+    "astro": "7.4.5",
+    "preact": "11.1.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "0.9.12",
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
+    "playwright-core": "1.64.1",
+    "typescript": "6.0.3"
+  }
+}

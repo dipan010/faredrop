@@ -1,0 +1,82 @@
+---
+// C2. Variants: public (anchors + Sign in), app (Deals / Saved [n] /
+// My alerts, alerts pill, avatar), minimal (logo + one right link),
+// ops (ops tag + internal nav + data-as-of). Every variant carries the
+// theme switch (G33).
+import Logo from './Logo.astro';
+import ThemeSwitch from './ThemeSwitch';
+import { Bell } from './icons';
+
+interface Props {
+  variant?: 'public' | 'app' | 'minimal' | 'ops';
+  current?: 'deals' | 'saved' | 'alerts' | 'pipeline' | 'feedback';
+  savedCount?: number;
+  /** Signed-in user's initial for the avatar; none hides the right side. */
+  user?: { initial: string; alertsOn: boolean };
+  /** minimal: the right-hand text and link. */
+  aside?: { text?: string; label: string; href: string };
+  /** ops: "Data as of …" note. */
+  asOf?: string;
+  /** nav landmark name; only the gallery, which shows several headers, changes it */
+  navLabel?: string;
+}
+const { variant = 'app', current, savedCount, user, aside, asOf, navLabel } = Astro.props;
+const cur = (k: string) => (current === k ? 'page' : undefined);
+---
+<header class:list={['fd-header', `fd-header--${variant}`]}>
+  <div class="fd-header__in">
+    {variant === 'ops' ? (
+      <span class="fd-ops-word">faredrop <span>ops</span></span>
+    ) : (
+      <Logo href={variant === 'app' ? '/deals' : '/'} word={variant === 'public' ? 'lg' : 'md'} />
+    )}
+
+    {variant === 'public' && (
+      <nav aria-label={navLabel ?? 'Main'} class="fd-nav fd-nav--public">
+        <a href="/#how">How it works</a>
+        <a href="/#deals">Recent deals</a>
+        <a href="/#pricing">Pricing</a>
+        <a href="/signin" class="fd-nav__signin">Sign in</a>
+        <ThemeSwitch client:load />
+      </nav>
+    )}
+
+    {variant === 'app' && (
+      <>
+        <nav aria-label={navLabel ?? 'Main'} class="fd-nav">
+          <a href="/deals" aria-current={cur('deals')}>Deals</a>
+          <a href="/saved" aria-current={cur('saved')}>
+            Saved{savedCount != null && <> <span class="fd-count">{savedCount}</span></>}
+          </a>
+          <a href="/alerts" aria-current={cur('alerts')}>My alerts</a>
+        </nav>
+        <div class="fd-header__end">
+          {user && (
+            <a href="/alerts" class="fd-alerts-pill">
+              <Bell /> {user.alertsOn ? 'Email alerts on' : 'Email alerts off'}
+            </a>
+          )}
+          <ThemeSwitch client:load />
+          {user && <a href="/alerts" class="fd-avatar" aria-label="Your account">{user.initial}</a>}
+        </div>
+      </>
+    )}
+
+    {variant === 'minimal' && (
+      <span class="fd-header__aside">
+        {aside && <span>{aside.text} <a href={aside.href}>{aside.label}</a></span>}
+        <ThemeSwitch client:load />
+      </span>
+    )}
+
+    {variant === 'ops' && (
+      <>
+        <nav aria-label={navLabel ?? 'Internal'} class="fd-nav">
+          <a href="/ops/health" aria-current={cur('pipeline')}>Pipeline</a>
+          <a href="/ops/feedback" aria-current={cur('feedback')}>Deal feedback</a>
+        </nav>
+        <span class="fd-header__aside">{asOf}<ThemeSwitch client:load /></span>
+      </>
+    )}
+  </div>
+</header>

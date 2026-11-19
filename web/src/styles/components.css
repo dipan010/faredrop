@@ -1,0 +1,469 @@
+/* Component styles. Values are the canvas boards' inline styles, lifted into
+   classes so Astro and Preact components share them. Prefix: fd-. */
+
+/* C1 Logo ---------------------------------------------------------------- */
+.fd-logo { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+.fd-logo:hover { color: var(--ink); }
+.fd-logo__word { font-family: var(--font-head); font-weight: 700; font-size: 20px; letter-spacing: -0.02em; }
+.fd-logo--lg .fd-logo__word { font-size: 22px; }
+.fd-logo--sm { gap: 8px; }
+.fd-logo--sm .fd-logo__word { font-size: 19px; letter-spacing: 0; }
+
+/* C2 SiteHeader ------------------------------------------------------------ */
+.fd-header { background: var(--surface); border-bottom: 1px solid var(--line); }
+.fd-header--public, .fd-header--minimal { background: transparent; border-bottom: 0; }
+.fd-header__in {
+  max-width: var(--w-content); margin: 0 auto; padding: 12px 24px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px 32px;
+}
+.fd-header--public .fd-header__in, .fd-header--minimal .fd-header__in { padding: 18px 24px; }
+.fd-nav { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.fd-nav a { padding: 10px 14px; border-radius: 8px; color: var(--ink2); text-decoration: none; }
+.fd-nav a[aria-current='page'] { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.fd-nav--public { margin-left: auto; }
+.fd-nav--public a { padding: 10px 12px; }
+.fd-nav--public a.fd-nav__signin {
+  padding: 10px 16px; border: 1px solid var(--line2); border-radius: var(--r-pill); color: var(--ink); font-weight: 500;
+}
+.fd-count { font-size: 12px; padding: 1px 7px; border-radius: var(--r-pill); background: var(--chip); color: var(--ink2); }
+.fd-header__end { margin-left: auto; display: flex; align-items: center; gap: 12px; }
+.fd-header__aside { margin-left: auto; font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 12px; }
+.fd-alerts-pill {
+  height: 40px; padding: 0 14px; display: inline-flex; align-items: center; gap: 8px;
+  border: 1px solid var(--line2); border-radius: var(--r-pill); font-size: 13px; color: var(--ink); text-decoration: none;
+}
+.fd-alerts-pill:hover { color: var(--ink); }
+.fd-avatar {
+  width: 40px; height: 40px; border-radius: 50%; background: var(--accent); color: var(--surface);
+  display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 14px; text-decoration: none;
+}
+.fd-avatar:hover { color: var(--surface); }
+/* Phones: the tab bar (C3) replaces the app header's nav (spec §3.5). */
+@media (max-width: 640px) { .fd-header--app .fd-nav { display: none; } }
+.fd-header--ops { background: var(--ink); color: var(--bg); border-bottom: 0; }
+.fd-header--ops .fd-header__in { max-width: var(--w-feed); gap: 12px 24px; }
+.fd-ops-word { font-family: var(--font-head); font-weight: 700; font-size: 18px; }
+.fd-ops-word span { font-weight: 500; color: var(--band-muted); }
+.fd-header--ops .fd-nav a { padding: 8px 12px; color: var(--band-muted); }
+.fd-header--ops .fd-nav a[aria-current='page'] { background: var(--band-active); color: var(--surface); }
+.fd-header--ops .fd-header__aside { font-size: 12px; color: var(--band-muted); }
+
+/* C3 PhoneTabBar ----------------------------------------------------------- */
+.fd-tabbar {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line); background: var(--surface); padding: 6px 8px 22px;
+}
+.fd-tabbar a {
+  height: 52px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  font-size: 12px; color: var(--muted); text-decoration: none;
+}
+.fd-tabbar a[aria-current='page'] { color: var(--accent); font-weight: 600; }
+
+/* C4 Footer ----------------------------------------------------------------- */
+.fd-footer { border-top: 1px solid var(--line); }
+.fd-footer__in {
+  max-width: var(--w-content); margin: 0 auto; padding: 28px 24px;
+  display: flex; flex-wrap: wrap; gap: 12px 24px; font-size: 14px; color: var(--muted);
+}
+.fd-footer__in a:first-of-type { margin-left: auto; }
+
+/* C5 Button ------------------------------------------------------------------ */
+.fd-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 48px; padding: 0 18px; border-radius: var(--r-control); border: 0;
+  font-size: 15px; font-weight: 600; text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.fd-btn--52 { height: 52px; font-size: 16px; padding: 0 22px; }
+.fd-btn--44 { height: 44px; font-size: 14px; }
+.fd-btn--40 { height: 40px; font-size: 14px; padding: 0 16px; border-radius: 8px; }
+.fd-btn--36 { height: 36px; font-size: 14px; padding: 0 14px; border-radius: 8px; }
+.fd-btn--block { width: 100%; }
+.fd-btn--primary { background: var(--ink); color: var(--surface); }
+.fd-btn--primary:hover { color: var(--surface); }
+.fd-btn--accent { background: var(--accent); color: var(--surface); }
+.fd-btn--accent:hover { color: var(--surface); }
+.fd-btn--outline { background: var(--surface); color: var(--ink); border: 1px solid var(--ink); }
+.fd-btn--outline:hover { color: var(--ink); }
+.fd-btn--secondary { background: var(--surface); color: var(--ink); border: 1px solid var(--line2); font-weight: 400; }
+.fd-btn--secondary:hover { color: var(--ink); }
+.fd-btn--text { background: transparent; color: var(--accent); padding: 0; height: 40px; font-weight: 400; font-size: 14px; }
+.fd-btn--quiet { background: transparent; color: var(--muted); font-weight: 400; font-size: 13px; padding: 0 10px; }
+.fd-btn--danger { background: var(--bad); color: var(--surface); }
+.fd-btn--danger-outline { background: var(--surface); color: var(--bad); border: 1px solid var(--bad-line); }
+.fd-btn--brand { background: var(--brand); color: #15171C; font-weight: 700; }
+.fd-btn--brand:hover { color: #15171C; }
+.fd-btn[aria-disabled='true'], .fd-btn:disabled { background: var(--line2); color: var(--muted); border-color: var(--line2); cursor: not-allowed; }
+
+/* C6 ToggleChip ---------------------------------------------------------------- */
+.fd-chips { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.fd-chip {
+  height: 40px; padding: 0 14px; border-radius: var(--r-pill); font-size: 14px;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line2); cursor: pointer;
+}
+.fd-chip--44 { height: 44px; padding: 0 16px; font-size: 15px; }
+.fd-chip[aria-pressed='true'] { background: var(--ink); color: var(--surface); border-color: var(--ink); font-weight: 600; }
+.fd-chip__n { margin-left: 6px; font-size: 12px; opacity: 0.8; }
+.fd-chip[aria-disabled='true'] { color: var(--muted); cursor: not-allowed; }
+.fd-chip--removable { padding: 0 6px 0 14px; display: inline-flex; align-items: center; gap: 4px; background: var(--ink); color: var(--surface); border-color: var(--ink); font-weight: 600; cursor: default; }
+.fd-chip__x { width: 32px; height: 32px; border-radius: 50%; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; }
+.fd-chip-note { font-size: 13px; color: var(--muted); }
+
+/* C7 Select / C8 TextField -------------------------------------------------------- */
+.fd-field { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+.fd-field--inline { flex-direction: row; align-items: center; gap: 8px; }
+.fd-input, .fd-select, .fd-textarea {
+  height: 48px; padding: 0 12px; border: 1px solid var(--line2); border-radius: var(--r-control);
+  background: var(--surface); font-size: 15px; color: var(--ink); width: 100%;
+}
+.fd-input--52, .fd-select--52 { height: 52px; padding: 0 14px; font-size: 16px; }
+.fd-input--44, .fd-select--44 { height: 44px; }
+.fd-select--40 { height: 40px; border-radius: 8px; width: auto; }
+.fd-textarea { height: auto; min-height: 120px; padding: 12px; line-height: 1.5; resize: vertical; }
+.fd-input[aria-invalid='true'] { border-color: var(--bad-line); }
+.fd-field__error { color: var(--bad); font-size: 13px; }
+.fd-field__hint { color: var(--muted); font-size: 12px; }
+
+/* C9 CodeInput ---------------------------------------------------------------------- */
+.fd-code { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.fd-code input {
+  height: 56px; width: 100%; text-align: center; border: 1px solid var(--line2); border-radius: var(--r-control);
+  font-family: var(--font-head); font-size: 24px; font-weight: 600; color: var(--ink); background: var(--surface);
+}
+
+/* C10 Switch -------------------------------------------------------------------------- */
+.fd-switch {
+  width: 48px; height: 28px; flex: none; border-radius: var(--r-pill); border: 0; padding: 3px;
+  display: flex; justify-content: flex-start; background: var(--switch-off); cursor: pointer;
+}
+.fd-switch[aria-checked='true'] { background: var(--accent); justify-content: flex-end; }
+.fd-switch:disabled { opacity: 0.55; cursor: not-allowed; }
+.fd-switch__knob { width: 22px; height: 22px; border-radius: 50%; background: var(--surface); box-shadow: var(--shadow-knob); }
+.fd-switch-row { display: flex; align-items: center; gap: 16px; padding: 10px 0; border-top: 1px solid var(--line3); }
+.fd-switch-row__text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.fd-switch-row__label { font-weight: 500; }
+.fd-switch-row__sub { font-size: 13px; color: var(--muted); }
+
+/* C11 OptionCard ------------------------------------------------------------------------ */
+.fd-options { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.fd-option {
+  width: 100%; min-height: 60px; padding: 10px 14px; border-radius: var(--r-option);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer;
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line); margin: 1px; text-align: left;
+}
+.fd-option[aria-pressed='true'], .fd-option[aria-checked='true'] { border: 2px solid var(--accent); margin: 0; }
+.fd-option__text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.fd-option__label { font-weight: 600; font-size: 15px; }
+.fd-option__sub { font-size: 12px; color: var(--muted); }
+.fd-option__box {
+  width: 24px; height: 24px; flex: none; border-radius: var(--r-check); display: flex; align-items: center; justify-content: center;
+  border: 1.5px solid var(--faint);
+}
+[aria-pressed='true'] > .fd-option__box { background: var(--accent); border: 0; }
+.fd-option__dot { width: 22px; height: 22px; flex: none; border-radius: 50%; border: 1.5px solid var(--faint); }
+[aria-checked='true'] > .fd-option__dot { border: 7px solid var(--accent); }
+
+/* C12 Stepper ------------------------------------------------------------------------------ */
+.fd-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.fd-step { display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: var(--r-option); border: 1px solid transparent; }
+.fd-step[aria-current='step'] { background: var(--surface); border-color: var(--line); }
+.fd-step__badge {
+  width: 32px; height: 32px; flex: none; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; background: var(--line); color: var(--ink2);
+}
+.fd-step--done .fd-step__badge, .fd-step[aria-current='step'] .fd-step__badge { background: var(--accent); color: var(--surface); }
+.fd-step__text { display: flex; flex-direction: column; gap: 2px; }
+.fd-step__title { font-weight: 600; }
+.fd-step__sub { font-size: 13px; color: var(--muted); }
+.fd-stepbars { display: flex; flex-direction: column; gap: 10px; }
+.fd-stepbars__label { font-size: 13px; color: var(--muted); text-align: center; }
+.fd-stepbars__bars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.fd-stepbars__bars span { height: 4px; border-radius: 2px; background: var(--line); }
+.fd-stepbars__bars span.on { background: var(--accent); }
+
+/* C13 DealCard ------------------------------------------------------------------------------ */
+.fd-card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); }
+.fd-deal { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.fd-deal__top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.fd-deal__titles { display: flex; flex-direction: column; gap: 2px; }
+.fd-deal__city { font-family: var(--font-head); font-size: 24px; font-weight: 600; letter-spacing: -0.02em; }
+.fd-deal__from { font-size: 13px; color: var(--muted); }
+.fd-save-btn {
+  width: 44px; height: 44px; flex: none; border-radius: var(--r-control); border: 1px solid var(--line);
+  background: var(--surface); display: flex; align-items: center; justify-content: center;
+}
+.fd-save-btn svg path { fill: none; stroke: var(--ink); }
+.fd-save-btn[aria-pressed='true'] svg path { fill: var(--brand); }
+.fd-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.fd-tag { padding: 4px 9px; border-radius: var(--r-check); background: var(--chip); font-size: 13px; }
+.fd-tag--accent { background: var(--accent-bg); color: var(--accent); font-weight: 600; }
+.fd-group { background: var(--surface2); border: 1px dashed var(--line2); border-radius: var(--r-control); padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+.fd-group__title { font-size: 13px; font-weight: 600; }
+.fd-datechip { padding: 4px 8px; border-radius: var(--r-check); background: var(--surface); border: 1px solid var(--line); font-size: 12px; color: var(--ink); text-decoration: none; }
+a.fd-datechip:hover { border-color: var(--accent); color: var(--ink); }
+.fd-datechips--lg .fd-datechip { padding: 6px 10px; font-size: 13px; }
+.fd-deal__foot { margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding-top: 14px; border-top: 1px solid var(--line3); }
+.fd-deal__foot .fd-btn--quiet { margin-left: auto; height: 40px; }
+.fd-deal--compact {
+  display: flex; gap: 12px; align-items: center; padding: 14px; border-radius: var(--r-option);
+  text-decoration: none; color: var(--ink);
+}
+.fd-deal--compact:hover { color: var(--ink); border-color: var(--line2); }
+.fd-deal--compact .fd-deal__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.fd-deal--compact .fd-deal__route { font-family: var(--font-head); font-size: 18px; font-weight: 600; }
+.fd-deal--compact .fd-deal__meta { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fd-deal--compact .fd-deal__side { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
+.fd-deal--compact .fd-deal__price { font-family: var(--font-head); font-size: 18px; font-weight: 700; }
+.fd-deal--compact .fd-deal__pct { font-size: 12px; font-weight: 600; color: var(--save); }
+.fd-deal--mini { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+.fd-deal--mini .fd-deal__from { margin: 0; }
+.fd-deal--mini .fd-deal__city { font-size: 22px; letter-spacing: 0; margin-top: -6px; }
+.fd-deal--teaser {
+  border-radius: var(--r-panel); padding: 24px; box-shadow: 0 1px 2px rgba(21,23,28,.04), var(--shadow-hero);
+  display: flex; flex-direction: column; gap: 16px;
+}
+.fd-deal--teaser .fd-deal__new { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.fd-deal--teaser .fd-deal__city { font-size: 30px; }
+.fd-deal--teaser .fd-deal__from { font-size: 14px; }
+.fd-teaser-bar { position: relative; height: 10px; border-radius: var(--r-track); background: var(--track); }
+.fd-teaser-bar span { position: absolute; left: 0; top: 0; bottom: 0; border-radius: var(--r-track); background: var(--accent); }
+.fd-deal--teaser .fd-deal__foot2 { display: flex; justify-content: space-between; align-items: center; }
+.fd-deal__book { font-size: 14px; font-weight: 600; color: var(--accent); text-decoration: none; }
+.fd-deal--row { padding: 18px; display: flex; justify-content: space-between; align-items: center; gap: 12px; text-decoration: none; color: var(--ink); }
+.fd-deal--row:hover { color: var(--ink); border-color: var(--line2); }
+.fd-deal--row .fd-deal__city { font-size: 20px; letter-spacing: 0; }
+.fd-deal--row strong { font-family: var(--font-head); font-size: 24px; }
+.fd-deal--dim { opacity: 0.75; }
+.fd-deal--ended { background: var(--chip); }
+
+/* C14 PriceBlock / C15 SavingPill --------------------------------------------------------------- */
+.fd-price { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.fd-price__now { font-family: var(--font-head); font-size: 34px; font-weight: 700; letter-spacing: -0.02em; }
+.fd-price__usual { font-size: 14px; color: var(--muted); }
+.fd-price--large { flex-direction: column; align-items: flex-end; gap: 4px; }
+.fd-price--large .fd-price__now { font-size: 48px; letter-spacing: -0.03em; }
+.fd-price--large .fd-price__below { font-size: 15px; }
+.fd-price__below strong { color: var(--save); font-weight: 600; }
+.fd-price--hero .fd-price__now { font-size: 44px; letter-spacing: -0.03em; }
+.fd-price--hero .fd-price__usual { font-size: 15px; }
+.fd-price--phone .fd-price__now { font-size: 40px; letter-spacing: -0.03em; }
+.fd-price--phone .fd-price__usual { font-size: 15px; }
+.fd-price--mini { gap: 8px; }
+.fd-price--mini .fd-price__now { font-size: 26px; letter-spacing: 0; }
+.fd-price--inline .fd-price__now { font-size: 30px; letter-spacing: 0; }
+.fd-pill { padding: 5px 10px; border-radius: var(--r-pill); background: var(--save-bg); color: var(--save); font-size: 13px; font-weight: 600; white-space: nowrap; align-self: flex-start; }
+.fd-pill--lg { padding: 6px 12px; font-size: 14px; }
+.fd-pill--push { margin-left: auto; align-self: auto; }
+.fd-pill--good { background: var(--good-bg); color: var(--good); padding: 4px 10px; }
+.fd-pill--neutral { background: var(--chip); color: var(--ink2); padding: 4px 10px; font-weight: 400; }
+.fd-pill--accent { background: var(--accent-bg); color: var(--accent); padding: 4px 10px; }
+
+/* C16 Freshness ---------------------------------------------------------------------------------- */
+.fd-fresh { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 6px; }
+.fd-fresh__dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good-dot); flex: none; }
+.fd-fresh--old .fd-fresh__dot { background: var(--fresh-old); }
+.fd-fresh--stale { color: var(--warn); }
+
+/* C18 PriceRangeBar ---------------------------------------------------------------------------------- */
+.fd-range { position: relative; height: 128px; }
+.fd-range__track, .fd-range__band { position: absolute; top: 56px; height: 14px; border-radius: 7px; }
+.fd-range__track { left: 0; right: 0; background: var(--track); }
+.fd-range__band { background: var(--range); }
+.fd-range--broken .fd-range__track { right: 24px; border-radius: 7px 0 0 7px; }
+.fd-range--broken .fd-range__band { border-radius: 0; }
+.fd-range__break { position: absolute; right: 0; top: 52px; }
+.fd-range__lbl { position: absolute; top: 80px; font-size: 12px; color: var(--ink2); transform: translateX(-50%); text-align: center; white-space: nowrap; line-height: 1.35; }
+.fd-range__lbl span { color: var(--muted); }
+.fd-range__lbl--end { transform: none; right: 0; text-align: right; }
+.fd-range__lbl--start { transform: translateX(-20%); text-align: left; }
+.fd-range__usual { position: absolute; top: 50px; width: 2px; height: 26px; background: var(--accent); }
+.fd-range__usual-lbl { position: absolute; top: 22px; font-size: 12px; color: var(--accent); font-weight: 600; transform: translateX(-50%); white-space: nowrap; }
+.fd-range__dot {
+  position: absolute; top: 49px; width: 28px; height: 28px; border-radius: 50%; background: var(--ring-deal, #C2410C);
+  border: 4px solid var(--surface); box-shadow: 0 0 0 1px var(--ring-deal, #C2410C); transform: translateX(-50%);
+}
+.fd-range__deal { position: absolute; top: 84px; font-size: 13px; color: var(--save); font-weight: 700; transform: translateX(-50%); text-align: center; white-space: nowrap; line-height: 1.35; }
+.fd-range__deal span { font-weight: 500; }
+.fd-range--broken .fd-range__deal { top: 0; }
+.fd-range--compact { height: 70px; }
+.fd-range--compact .fd-range__track, .fd-range--compact .fd-range__band { top: 24px; height: 10px; border-radius: 5px; }
+.fd-range--compact .fd-range__dot { top: 18px; width: 22px; height: 22px; border-width: 3px; }
+.fd-range--compact .fd-range__deal { top: 46px; font-size: 12px; }
+.fd-range--compact .fd-range__normal { position: absolute; top: 0; transform: translateX(-50%); font-size: 12px; color: var(--ink2); white-space: nowrap; }
+.fd-compare { display: flex; flex-direction: column; gap: 12px; }
+.fd-compare__row { display: grid; grid-template-columns: 120px minmax(0, 1fr) 90px; gap: 12px; align-items: center; }
+.fd-compare__name { font-size: 14px; color: var(--ink2); }
+.fd-compare__bar { height: 14px; border-radius: 0 4px 4px 0; background: var(--range); }
+.fd-compare__bar--deal { background: var(--ring-deal, #C2410C); }
+.fd-compare__val { font-weight: 600; text-align: right; }
+.fd-compare__val--deal { font-weight: 700; color: var(--save); }
+.fd-note { margin: 0; padding: 12px 14px; border-radius: var(--r-control); background: var(--surface2); font-size: 13px; color: var(--ink2); line-height: 1.5; }
+
+/* C19 CheckList / C20 Timeline ------------------------------------------------------------------------- */
+.fd-checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.fd-checks li { display: flex; gap: 14px; align-items: flex-start; padding: 12px 0; border-top: 1px solid var(--line3); }
+.fd-checks svg { flex: none; margin-top: 1px; }
+.fd-checks__text { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.fd-checks__title { font-weight: 600; }
+.fd-checks__detail { font-size: 14px; color: var(--muted); }
+.fd-timeline { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.fd-timeline li { display: flex; flex-direction: column; gap: 8px; }
+.fd-timeline__bar { height: 4px; border-radius: 2px; background: var(--accent); }
+.fd-timeline__when { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.fd-timeline__title { font-weight: 600; }
+.fd-timeline__detail { font-size: 14px; color: var(--muted); line-height: 1.45; }
+@media (max-width: 640px) { .fd-timeline { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Panels (deal page sections, account sections) */
+.fd-panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+.fd-panel--side { padding: 22px; gap: 16px; }
+.fd-panel h2 { font-size: 18px; font-weight: 600; }
+.fd-panel--side h2 { font-size: 16px; }
+.fd-panel__sub { color: var(--muted); font-size: 14px; margin-top: 6px; }
+.fd-facts { display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
+.fd-facts div { display: flex; justify-content: space-between; gap: 12px; }
+.fd-facts dt, .fd-facts span:first-child { color: var(--muted); }
+.fd-small { font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+/* C21 BookingPanel ----------------------------------------------------------------------------------------- */
+.fd-book { border: 1px solid var(--line); border-radius: var(--r-option); padding: 14px; display: flex; flex-direction: column; gap: 10px; background: var(--surface2); }
+.fd-book__title { font-weight: 600; font-size: 14px; }
+.fd-book__link {
+  min-height: 44px; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-radius: 8px;
+  background: var(--surface); border: 1px solid var(--line); text-decoration: none; color: var(--ink); font-size: 14px; gap: 12px;
+}
+.fd-book__link > span:last-child, .fd-book__link > strong { white-space: nowrap; }
+.fd-book__link:hover { color: var(--ink); border-color: var(--line2); }
+.fd-sheet-backdrop { position: fixed; inset: 0; background: rgba(21,23,28,0.45); display: flex; align-items: flex-end; z-index: 50; }
+.fd-sheet-backdrop--contained { position: absolute; }
+.fd-sheet { width: 100%; background: var(--surface); border-radius: 18px 18px 0 0; padding: 20px 16px 32px; display: flex; flex-direction: column; gap: 10px; }
+.fd-sheet__head { display: flex; justify-content: space-between; align-items: center; }
+.fd-sheet__title { font-weight: 700; font-size: 17px; }
+.fd-sheet .fd-book__link { min-height: 52px; padding: 0 14px; border-radius: var(--r-control); background: transparent; font-size: 15px; }
+.fd-icon-btn { width: 44px; height: 44px; border: 0; background: transparent; display: flex; align-items: center; justify-content: center; border-radius: var(--r-control); color: var(--ink); }
+.fd-icon-btn--bordered { border: 1px solid var(--line); background: var(--surface); }
+.fd-savebar { padding: 12px 16px 26px; background: var(--surface); border-top: 1px solid var(--line); display: flex; gap: 10px; }
+.fd-savebar .fd-save-btn { width: 52px; height: 52px; border-radius: var(--r-option); border-color: var(--line2); }
+.fd-savebar .fd-btn { flex: 1; height: 52px; border-radius: var(--r-option); font-size: 16px; }
+.fd-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.fd-toggle-save { height: 44px; border-radius: var(--r-control); font-size: 14px; background: var(--surface); border: 1px solid var(--line2); color: var(--ink); }
+.fd-toggle-save[aria-pressed='true'] { background: var(--save-bg); border-color: var(--brand); color: var(--save); font-weight: 600; }
+
+/* C22 WatchRoute -------------------------------------------------------------------------------------------------- */
+.fd-watching { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: var(--r-control); background: var(--good-bg); color: var(--good); font-size: 14px; }
+.fd-watching span { flex: 1; }
+.fd-watching button { height: 36px; border: 0; background: transparent; color: var(--good); text-decoration: underline; font-size: 14px; }
+.fd-locked { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px; border-radius: var(--r-control); background: var(--accent-bg); color: var(--ink2); font-size: 14px; line-height: 1.5; }
+
+/* C23 Banner ------------------------------------------------------------------------------------------------------- */
+.fd-banner { display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border-radius: var(--r-control); font-size: 14px; line-height: 1.45; }
+.fd-banner svg { flex: none; margin-top: 1px; }
+.fd-banner--warn { background: var(--warn-bg); color: var(--warn); }
+.fd-banner--info { background: var(--accent-bg); color: var(--ink2); }
+.fd-banner--note { background: var(--surface2); color: var(--ink2); border: 1px dashed var(--line2); }
+.fd-banner--bad { background: var(--bad-bg); color: var(--bad); }
+.fd-banner--error { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); padding: 18px; flex-wrap: wrap; align-items: center; gap: 12px; color: var(--ink); font-size: 15px; }
+.fd-banner__text { flex: 1 1 260px; display: flex; flex-direction: column; gap: 2px; }
+.fd-banner__title { font-weight: 600; }
+.fd-banner__body { font-size: 14px; color: var(--muted); }
+.fd-banner--warn .fd-banner__body, .fd-banner--info .fd-banner__body, .fd-banner--bad .fd-banner__body { color: inherit; }
+.fd-offline { padding: 10px 14px; background: var(--ink); color: var(--bg); font-size: 13px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.fd-offline button { border: 0; background: transparent; color: var(--bg); font-weight: 600; font-size: 13px; min-height: 32px; }
+.fd-band { background: var(--ink); color: var(--bg); border-radius: 16px; padding: 22px 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 16px; }
+.fd-band__text { flex: 1 1 300px; display: flex; flex-direction: column; gap: 4px; }
+.fd-band__title { font-weight: 600; font-size: 17px; }
+.fd-band__body { font-size: 14px; color: var(--band-muted); }
+
+/* C24 Toast ---------------------------------------------------------------------------------------------------------- */
+.fd-toast { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; border-radius: var(--r-control); background: var(--ink); color: var(--bg); font-size: 14px; }
+.fd-toast button { margin-left: auto; height: 36px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--muted2); background: transparent; color: var(--surface); font-size: 14px; font-weight: 600; }
+.fd-toast--sm { padding: 10px 12px; font-size: 13px; }
+
+/* C25 EmptyState ------------------------------------------------------------------------------------------------------ */
+.fd-empty { background: var(--surface); border: 1px dashed var(--line2); border-radius: var(--r-card); padding: 40px 24px; display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.fd-empty--solid { border-style: solid; border-color: var(--line); padding: 28px; }
+.fd-empty__title { font-family: var(--font-head); font-size: 22px; font-weight: 600; }
+.fd-empty__body { color: var(--muted); max-width: 420px; line-height: 1.5; font-size: 14px; }
+.fd-empty .fd-btn { margin-top: 6px; }
+
+/* C26 Skeleton ---------------------------------------------------------------------------------------------------------- */
+.fd-skel { padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.fd-skel span { display: block; border-radius: var(--r-check); background: var(--track); }
+.fd-skel span.c { background: var(--chip); }
+.fd-skel__row { display: flex; gap: 6px; }
+@media (prefers-reduced-motion: no-preference) {
+  .fd-skel span { animation: fd-pulse 1.4s ease-in-out infinite; }
+}
+@keyframes fd-pulse { 50% { opacity: 0.55; } }
+
+/* C27 Accordion ------------------------------------------------------------------------------------------------------------ */
+.fd-acc { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-card); display: flex; flex-direction: column; }
+.fd-acc__item + .fd-acc__item { border-top: 1px solid var(--line3); }
+.fd-acc__q {
+  width: 100%; min-height: 52px; padding: 12px 16px; border: 0; background: transparent; display: flex; align-items: center;
+  justify-content: space-between; gap: 12px; text-align: left; font-size: 15px; font-weight: 600; color: var(--ink);
+}
+.fd-acc__sign { font-size: 18px; color: var(--muted); }
+.fd-acc__a { margin: 0; padding: 0 16px 14px; color: var(--ink2); font-size: 14px; line-height: 1.55; }
+
+/* C28 SavedRow / WatchRow ------------------------------------------------------------------------------------------------------ */
+.fd-saved { display: flex; gap: 12px; align-items: flex-start; padding: 14px; border-radius: var(--r-option); border: 1px solid var(--line); background: var(--surface); }
+.fd-saved--ended { background: var(--chip); }
+.fd-saved__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; text-decoration: none; color: var(--ink); }
+.fd-saved__main:hover { color: var(--ink); }
+.fd-saved__title { font-family: var(--font-head); font-size: 17px; font-weight: 600; }
+.fd-saved__meta { font-size: 12px; color: var(--muted); }
+.fd-saved__note { font-size: 12px; margin-top: 2px; color: var(--good); }
+.fd-saved--ended .fd-saved__note { color: var(--muted); }
+.fd-saved__side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.fd-saved__price { font-family: var(--font-head); font-size: 17px; font-weight: 700; }
+.fd-saved--ended .fd-saved__price { color: var(--muted); text-decoration: line-through; }
+.fd-saved__remove { height: 32px; padding: 0 8px; border: 0; background: transparent; color: var(--muted); font-size: 12px; }
+.fd-change { padding: 10px 12px; border-radius: var(--r-control); background: var(--chip); font-size: 14px; color: var(--ink2); line-height: 1.45; }
+.fd-change strong { color: var(--ink); }
+.fd-change--down { background: var(--good-bg); color: var(--good); }
+.fd-change--down strong { color: inherit; }
+.fd-watchrow { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-option); padding: 12px 14px; display: flex; justify-content: space-between; gap: 10px; align-items: center; }
+.fd-watchrow__text { display: flex; flex-direction: column; gap: 2px; }
+.fd-watchrow__route { font-weight: 600; font-size: 14px; }
+.fd-watchrow__status { font-size: 12px; color: var(--muted); }
+.fd-watchrow__target { font-size: 13px; white-space: nowrap; }
+
+/* C29 StatTile / BarChart / DataTable ------------------------------------------------------------------------------------------------ */
+.fd-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+.fd-tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-option); padding: 16px; display: flex; flex-direction: column; gap: 6px; }
+.fd-tile__label { font-size: 12px; color: var(--muted); }
+.fd-tile__value { font-family: var(--font-head); font-size: 28px; font-weight: 600; }
+.fd-tile__note { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink2); }
+.fd-tile__icon { width: 16px; height: 16px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; flex: none; background: var(--good-bg); color: var(--good); }
+.fd-tile__icon--warn { background: var(--warn-bg); color: var(--warn); }
+.fd-chart { position: relative; height: 240px; padding-left: 40px; }
+.fd-chart__y { position: absolute; left: 0; top: 0; bottom: 28px; width: 34px; display: flex; flex-direction: column; justify-content: space-between; font-size: 11px; color: var(--muted); text-align: right; }
+.fd-chart__plot { position: absolute; left: 40px; right: 0; top: 0; bottom: 28px; border-bottom: 1px solid var(--switch-off); }
+.fd-chart__rule { position: absolute; left: 0; right: 0; border-top: 1px dashed var(--muted2); }
+.fd-chart__rule-lbl { position: absolute; right: 0; font-size: 11px; color: var(--ink2); background: var(--surface); padding: 0 4px; }
+.fd-chart__bars { position: absolute; inset: 0; display: grid; gap: 24px; align-items: end; padding: 0 16px; }
+.fd-chart__bar { height: 100%; border: 0; background: transparent; padding: 0; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; cursor: default; }
+.fd-chart__val { font-size: 12px; font-weight: 600; color: var(--ink); margin-bottom: 4px; }
+.fd-chart__fill { display: block; width: 100%; max-width: 56px; border-radius: 4px 4px 0 0; background: var(--accent); }
+.fd-chart__bar:hover .fd-chart__fill, .fd-chart__bar:focus-visible .fd-chart__fill { background: var(--accent-hover); }
+.fd-chart__x { position: absolute; left: 40px; right: 0; bottom: 0; height: 22px; display: grid; gap: 24px; padding: 0 16px; font-size: 12px; color: var(--muted); text-align: center; }
+.fd-chart__live { min-height: 20px; font-size: 13px; color: var(--ink2); }
+.fd-table { display: flex; flex-direction: column; font-size: 14px; }
+.fd-table__row { display: grid; grid-template-columns: var(--cols); gap: 16px; padding: 8px 0; border-top: 1px solid var(--line3); align-items: center; }
+.fd-table__row--head { padding: 6px 0; font-size: 12px; color: var(--muted); border-top: 0; }
+.fd-table__num { text-align: right; }
+@media (max-width: 640px) { .fd-table__row { grid-template-columns: var(--cols-phone); gap: 10px; } }
+.fd-table__bar { display: flex; align-items: center; gap: 8px; }
+.fd-table__bar span:first-child { display: block; height: 10px; border-radius: 0 4px 4px 0; background: var(--accent); }
+.fd-table__bar span:last-child { font-size: 12px; color: var(--ink2); }
+
+/* C30 ThemeSwitch ---------------------------------------------------------------------------------------------------------- */
+.fd-theme-btn { width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--line2); background: var(--surface); color: var(--ink); display: inline-flex; align-items: center; justify-content: center; }
+.fd-header--ops .fd-theme-btn { background: transparent; color: var(--bg); border-color: var(--line4); }
+
+/* Shared text bits */
+.fd-eyebrow { font-size: 13px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--eyebrow); }
+.fd-h1 { font-family: var(--font-head); font-size: 44px; line-height: 1.05; letter-spacing: -0.03em; }
+.fd-muted { color: var(--muted); }
+
+.fd-stack-8 { display: flex; flex-direction: column; gap: 8px; }

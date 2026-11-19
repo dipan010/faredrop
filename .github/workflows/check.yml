@@ -1,6 +1,7 @@
 # Tests on every push, plus one live call with the repository secret to
 # prove the key works and the parser still fits the API. Collection itself
 # runs on the laptop (launchd); nothing here writes data or keeps history.
+# The `web` job checks the product site in web/ (no secrets).
 name: check
 
 on:
@@ -34,3 +35,40 @@ jobs:
         env:
           TRAVEL_PAYOUTS_API_KEY: ${{ secrets.TRAVEL_PAYOUTS_API_KEY }}
         run: python3 tools/smoke.py
+
+  # The web app (web/): token check, type check, build, and the component
+  # gallery under Playwright + axe in both themes at 390 and 1440 px.
+  # Needs no secrets. Separate from the engine job so neither blocks the other.
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    env:
+      ASTRO_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+      - name: Tokens match the canvas; contrast pairs pass
+        run: npm run tokens
+      - name: Type check
+        run: npm run check
+      - name: Browsers for Playwright
+        run: npx playwright install --with-deps chromium
+      - name: Gallery accessibility (builds the site first)
+        run: npm test
+      - name: Keep the report when tests fail
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: web/playwright-report/
+          retention-days: 7

@@ -1,0 +1,33 @@
+---
+// Every page's shell: tokens, base styles, fonts (self-hosted, G32), and the
+// theme set before first paint so there's no flash.
+import '../styles/tokens.css';
+import '../styles/base.css';
+import '../styles/components.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  /** App pages use 15 px body text, Landing 16 px (spec §3.4). */
+  bodySize?: 15 | 16;
+}
+const { title, description, bodySize = 15 } = Astro.props;
+---
+<!doctype html>
+<html lang="en-IN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    <script is:inline>
+      try {
+        var t = localStorage.getItem('faredrop.theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
+  </head>
+  <body style={bodySize === 16 ? 'font-size:16px' : undefined}>
+    <slot />
+  </body>
+</html>

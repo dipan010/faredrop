@@ -4,17 +4,17 @@ The live tracker for the product build in `docs/build-plan.md`. Every build
 session reads this first and updates it as it works, so any new chat can pick
 up mid-phase. Run `/build` (or say "continue the build") to resume.
 
-Last updated: 2026-11-19 (phase 0 done and committed)
+Last updated: 2026-11-19 (phase 1: built and tested locally; CI and canvas sign-off pending)
 
 ## Now
 
-- **Current phase:** 1 · Frontend foundations (phase 0 done 2026-11-19)
-- **Status:** not started
-- **Branch:** `phase-1-foundations`, to be created from `phase-0-ui-spec`
-  (or from `main` once `docs/product-design` and `phase-0-ui-spec` are merged)
-- **Next step:** when phase 1 starts, fill this checklist from its prompt in
-  `docs/build-plan.md`. Before scaffolding `web/`, read `docs/ui-spec.md`
-  sections 3–4 (tokens and components) and gaps G31–G33.
+- **Current phase:** 1 · Frontend foundations
+- **Status:** in progress (all done except CI, which needs a push)
+- **Branch:** `phase-1-foundations`, from `phase-0-ui-spec` (not merged to
+  `main` yet; `main` lacks the HLD, LLD, plan and spec)
+- **Next step:** commit (owner approval pending). After the push, run the `web` CI job with
+  `gh workflow run check.yml --ref phase-1-foundations` and check it is green.
+  Then mark phase 1 done.
 - **Blocked on owner:** nothing for phase 1. Phase 6 needs G15/G42 decided
   (see "Blocked on owner").
 - **Can run in parallel:** phase 3 (exporter) now; its inputs are gaps G3,
@@ -27,7 +27,7 @@ Status values: not started · in progress · blocked · done.
 | # | Phase | Needs | Status | Branch | Started | Done |
 |---|---|---|---|---|---|---|
 | 0 | Canvas → written UI spec | — | done | phase-0-ui-spec | 2026-11-19 | 2026-11-19 |
-| 1 | Frontend foundations | 0 | not started | | | |
+| 1 | Frontend foundations | 0 | in progress | phase-1-foundations | 2026-11-19 | |
 | 2 | Public pages on fixtures | 1 | not started | | | |
 | 3 | Exporter | 0 | not started | | | |
 | 4 | Read-only site live | 2, 3 | not started | | | |
@@ -44,21 +44,63 @@ Copied from the phase's prompt and "Done when" in `docs/build-plan.md` when the
 phase starts. Tick items as they are finished; add sub-items as work reveals
 them.
 
-- [x] 1. Read canvas files (41 boards, not 48: see gaps) (`project/canvas.json`, then each `.dc.html`); group the 48 boards into ~20 pages
-- [x] 2. Per page: route, purpose, sections, controls, states, data (lld names), phase, source boards
-- [x] 3. Design tokens exactly from the canvas (light/dark vars, type, spacing, radii, focus), contrast pairs
-- [x] 4. Reusable components (~20): props, variants, states, used by
-- [x] 5. Copy: every user-facing string per page; placeholders marked
-- [x] 6. `docs/fixtures/snapshot.sample.json` shaped like lld §3, canvas deals only
-- [x] 7. Gaps/contradictions canvas vs lld, each with a proposed resolution
-- [x] Done when: spec covers every board; token table matches canvas; fixtures validate against lld field list; gaps listed
-  (verified by script: 41/41 boards in §1 and Appendix A; 36/36 tokens match the
-  canvas blocks; `tools/check_fixture.py` 0 failures, 1 known gap G35; G1–G45 defined)
+- [x] 1. Scaffold `web/` (pinned exact: astro 7.4.5, @astrojs/preact 6.1.1,
+  preact 11.1.1, typescript 6.0.3, @astrojs/check 0.9.12, @playwright/test and
+  playwright-core 1.64.1, @axe-core/playwright 4.14.0, @fontsource inter and
+  space-grotesk 5.3.0; each the newest release at least 2 weeks old).
+  Cloudflare Pages free limits are in `web/README.md`, read from the docs.
+- [x] 2. `tokens.css` generated from the spec table. `npm run tokens`: all 36
+  tokens match in 3 blocks, and 46 contrast pairs pass, including the 3:1
+  for `--faint` (G31 → `#82858C`). Fonts are self-hosted via @fontsource
+  (G32). `:focus-visible` comes from the canvas. ThemeSwitch cycles
+  system/light/dark, stores the choice in localStorage inside try/catch, and
+  an inline head script sets it before first paint (G33).
+- [x] 3. C1–C31 are in `web/src/components/`: chrome in `.astro`, the rest in
+  Preact `.tsx`. The islands are chips, code input, switch, option cards,
+  booking panel and sheet, watch route, toast, accordion, bar chart and theme
+  switch.
+- [x] 4. `/dev/components` shows every component in a light and a dark
+  panel. Playwright screenshots were taken at 390 and 1440.
+- [x] 5. Playwright + axe (`web/tests/gallery.spec.ts`), 7 tests pass
+  locally:
+  - axe at 390 and 1440 in both page themes, with no rules disabled;
+  - no horizontal overflow;
+  - the email shell;
+  - the theme switch;
+  - the sheet's focus trap.
+
+  The `web` job is added to `check.yml` and needs no secrets. Not yet run
+  on GitHub (it needs a push).
+- [x] 6. `web/src/data/`:
+  - LLD types (snapshot, API shapes) and the spec §2 formatters;
+  - a fixture adapter that validates against LLD §3 at build time (a broken
+    fixture fails `astro build`, which I tested);
+  - a fixture clock;
+  - an `apiSource` stub.
+- [ ] Done when:
+  - [x] axe passes;
+  - [ ] the CI job is green. It needs a push, and the owner approves pushes.
+  - [x] the gallery matches the canvas side by side in both themes and both
+    widths. The owner looked on 2026-11-19 and said it "looks fine". They will
+    raise any differences once the product pages are built.
+- Out of scope: product pages, backend, deployment
 
 ## Blocked on owner
 
 Things only the owner can do (accounts, secrets, domain, purchases, approvals,
 product decisions). Each item says exactly what to do and which phase waits.
+
+- **Phase 1:**
+  Also approve the commit, then the push, of `phase-1-foundations`, so the
+  `web` CI job can run.
+  - Pushing it also publishes the unpushed `docs/product-design` and
+    `phase-0-ui-spec` commits to the public repo.
+  - Those commits include the HLD, LLD, build plan and UI spec, and the plan's
+    links to the private canvas and architecture page (the pages stay
+    private; only the URLs become public).
+  - Say whether that's OK.
+- **G51:** approve or reword the strings that have no board
+  (`docs/ui-spec.md` §7, "Found in phase 1").
 
 - **Push and merge when ready:** `docs/product-design` (HLD, LLD, plan, build
   files) and `phase-0-ui-spec` (spec, fixtures) are committed locally, not
@@ -89,12 +131,31 @@ Open problems found while building: failing tests, bugs, things that didn't
 work, surprises in the data. Each: date, phase, what happened, current state.
 Move to the decisions log or delete when resolved.
 
+- 2026-11-19 · 1 · `npm audit` flags astro ≤ 7.4.6 (GHSA-r3h5-4585-7x3w,
+  moderate). It is in `@astrojs/node`'s image endpoint, which a static Pages
+  build doesn't use. Staying on 7.4.5 (the 2-week rule); move to ≥ 7.4.7 once
+  it is 2 weeks old (after 2026-11-20 or so).
+- 2026-11-19 · 1 · G31's proposed `#8A8D94` is 3.05:1 on `--bg` and 2.91:1 on
+  `--chip`, so it fails where unchecked boxes sit on chips. Used `#82858C`
+  (3.24:1 or better on surface, bg, surface2 and chip). axe can't check this
+  (it only checks text contrast), so `web/scripts/check-tokens.mjs` does.
 - 2026-11-19 · 0 · The canvas has 41 boards, not the 48 the plan and handoff
   say (G37). All 41 are covered. Proposed: say 41 in the plan when it's next
   edited.
 - 2026-11-19 · 0 · Light `--faint` (#9A9DA4) is 2.7:1 on white, under the 3:1
   that non-text checkbox and radio borders need (G31). Proposed #8A8D94
   (3.3:1); phase 1's axe run confirms it.
+- 2026-11-19 · 1 · Astro 7's `astro preview` detaches into the background
+  when it has no terminal, so Playwright's webServer saw an early exit, and a
+  leftover daemon then served a stale build. Fixed: tests serve `dist/` with
+  `web/scripts/serve.mjs`.
+- 2026-11-19 · 1 · `@axe-core/playwright` pulled `playwright-core` 1.65.1
+  (released that day) as a peer, which broke the types against
+  `@playwright/test` 1.64.1. Fixed: `playwright-core` is pinned to 1.64.1.
+  Transitive deps (vite and others) follow their ranges, pinned by
+  `package-lock.json`.
+- 2026-11-19 · 1 · Astro sends anonymous telemetry by default. Turned off in
+  every npm script and in CI (`ASTRO_TELEMETRY_DISABLED=1`).
 
 ## Gaps and open questions
 
@@ -120,11 +181,26 @@ didn't cover. Each: date, phase, the gap, proposed resolution.
   - **Screens with no board** (G2): the sign-in code email, the
     account-deleted email, the `/f/` thank-you page, the watch email and
     receipts.
+- 2026-11-19 · 1 · Phase 1 added gaps G46–G53, written into
+  `docs/ui-spec.md` §7 under "Found in phase 1", each with a resolution:
+  - G46: the price-bar scale rule;
+  - G47: where emails render (phase 7);
+  - G48: the dark logo arrow colour;
+  - G49: shared components are Preact `.tsx`, not plain Astro;
+  - G50: `tokens.css` vs the LLD's `theme.css`;
+  - **G51:** copy with no board needs the owner's OK;
+  - G52: API response bodies are proposed in `types.ts`;
+  - G53: exclude `/dev/` from production in phase 4.
+
+  BookingPanel hides the airline-site row by default (G9 applied
+  provisionally, `airlineLink` prop).
 
 ## Decisions log
 
 Decisions made during the build, newest first, with who decided.
 
+- 2026-11-19 · owner · Phase 1 gallery accepted against the canvas ("looks
+  fine"). Any visual differences get raised after the product pages are built.
 - 2026-11-15 · owner · Build follows `docs/build-plan.md`; one phase at a time
   per thread, tracked here.
 
@@ -133,6 +209,15 @@ Decisions made during the build, newest first, with who decided.
 Newest first. One entry per session: date, phase, what was done, where it
 stopped.
 
+- 2026-11-19 · 1 · Started phase 1 on `phase-1-foundations`, branched from
+  `phase-0-ui-spec`.
+  - Built `web/`: pinned toolchain, tokens and the check script, fonts,
+    theme switch, all 31 components, the gallery, the data module, Playwright
+    + axe (7 tests pass locally), the CI job and `web/README.md`.
+  - Updated spec G31 to `#82858C`.
+  - Stopped at the owner's canvas sign-off and the push for CI. Nothing is
+    committed yet.
+  - The owner's WIP in `src/`, `tests/` and `routes/` was not touched.
 - 2026-11-19 · 0 · Committed the build files to `docs/product-design`
   (5206662, owner approved). Branched `phase-0-ui-spec` from it, because
   `main` lacks the HLD, LLD and plan.

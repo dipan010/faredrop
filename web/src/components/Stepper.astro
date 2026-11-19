@@ -1,0 +1,24 @@
+---
+// C12. desktop: list with badge + title + sub; phone: bars + "Step n of 3".
+interface Props {
+  steps: { title: string; sub: string }[];
+  current: number; // 1-based
+  variant?: 'list' | 'bars';
+}
+const { steps, current, variant = 'list' } = Astro.props;
+---
+{variant === 'list' ? (
+  <ol class="fd-steps" aria-label="Steps">
+    {steps.map((s, i) => (
+      <li class:list={['fd-step', i + 1 < current && 'fd-step--done']} aria-current={i + 1 === current ? 'step' : undefined}>
+        <span class="fd-step__badge" aria-hidden="true">{i + 1}</span>
+        <span class="fd-step__text"><span class="fd-step__title">{s.title}</span><span class="fd-step__sub">{s.sub}</span></span>
+      </li>
+    ))}
+  </ol>
+) : (
+  <div class="fd-stepbars">
+    <span class="fd-stepbars__label">Step {current} of {steps.length}</span>
+    <div class="fd-stepbars__bars" aria-hidden="true">{steps.map((_, i) => <span class={i < current ? 'on' : ''} />)}</div>
+  </div>
+)}

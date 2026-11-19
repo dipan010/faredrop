@@ -1,0 +1,42 @@
+---
+// C31. Emails are table-based with inline hex and light only (spec §3.3);
+// mail clients ignore CSS variables and <style> blocks unevenly. Where
+// emails actually get rendered (notify.py or the Worker) is phase 7's call
+// (gap G47); this is the shared shell, previewed in the gallery.
+interface Props {
+  kind: 'deal' | 'digest' | 'saved-change' | 'account';
+  from?: string; // "deals@faredrop" until the domain is decided
+  preheader: string;
+  eyebrow?: string;
+  title: string;
+  sub?: string;
+  footer: string;
+}
+const { kind, from = 'deals@faredrop', preheader, eyebrow, title, sub, footer } = Astro.props;
+const band = kind === 'deal';
+const f = "font-family: Inter, system-ui, -apple-system, 'Segoe UI', sans-serif;";
+const h = "font-family: 'Space Grotesk', Inter, system-ui, sans-serif;";
+---
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style={`background:#ECEAE4; ${f} color:#15171C;`}>
+  <tr><td align="center" style="padding:24px;">
+    <table role="presentation" width="592" cellpadding="0" cellspacing="0" style="max-width:592px; width:100%;">
+      <tr><td style="padding:0 4px 14px; font-size:13px; color:#3F444D;">
+        <strong>faredrop</strong> · {from}<br />{preheader}
+      </td></tr>
+      <tr><td style="background:#FFFFFF; border-radius:14px; overflow:hidden;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr><td style={band ? 'background:#15171C; color:#F6F5F1; padding:28px 32px;' : 'padding:28px 32px 8px;'}>
+            {eyebrow && <div style={`font-size:13px; font-weight:600; letter-spacing:0.06em; text-transform:uppercase; color:${band ? '#F08A4B' : '#B4430B'}; padding-bottom:8px;`}>{eyebrow}</div>}
+            <div style={`${h} font-size:${band ? 36 : 32}px; font-weight:600; letter-spacing:-0.02em; line-height:1.08;`}>{title}</div>
+            {sub && <div style={`font-size:15px; color:${band ? '#C9CBD0' : '#5B606B'}; padding-top:8px;`}>{sub}</div>}
+          </td></tr>
+          <tr><td style="padding:24px 32px 28px;"><slot /></td></tr>
+        </table>
+      </td></tr>
+      <slot name="after" />
+      <tr><td style="padding:14px 4px 0; font-size:12px; color:#5B606B; text-align:center; line-height:1.5;">
+        {footer} <a href="/alerts" style="color:#0B6B66;">Change alerts</a> · <a href="/u/sample" style="color:#0B6B66;">Unsubscribe</a>
+      </td></tr>
+    </table>
+  </td></tr>
+</table>

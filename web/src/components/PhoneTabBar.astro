@@ -1,0 +1,16 @@
+---
+// C3. Replaces the header nav at ≤ 640 px on Deals, Saved and My alerts.
+import { Bell, Bookmark, List } from './icons';
+interface Props { current: 'deals' | 'saved' | 'alerts'; navLabel?: string }
+const { current, navLabel = 'Main' } = Astro.props;
+const tabs = [
+  { k: 'deals', href: '/deals', label: 'Deals', Icon: List },
+  { k: 'saved', href: '/saved', label: 'Saved', Icon: Bookmark },
+  { k: 'alerts', href: '/alerts', label: 'My alerts', Icon: Bell },
+] as const;
+---
+<nav aria-label={navLabel} class="fd-tabbar">
+  {tabs.map(({ k, href, label, Icon }) => (
+    <a href={href} aria-current={current === k ? 'page' : undefined}><Icon size={20} />{label}</a>
+  ))}
+</nav>

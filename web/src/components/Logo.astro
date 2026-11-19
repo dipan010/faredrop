@@ -1,0 +1,10 @@
+---
+// C1. size 28 (headers), 30 and 44 per spec; the word scales with it.
+import { LogoMark } from './icons';
+interface Props { size?: 24 | 28 | 30 | 44; href?: string; word?: 'sm' | 'md' | 'lg' }
+const { size = 28, href = '/', word = 'md' } = Astro.props;
+---
+<a href={href} class:list={['fd-logo', word === 'lg' && 'fd-logo--lg', word === 'sm' && 'fd-logo--sm']}>
+  <LogoMark size={size} />
+  <span class="fd-logo__word">faredrop</span>
+</a>
