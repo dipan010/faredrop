@@ -47,3 +47,12 @@ python3 tools/simulate.py             # synthetic history, for exercising the mo
   `GF_DAILY_LOOKUPS`: it is scraping, so raise it only after days without a block.
 - Keep `STATUS.md`'s Handoff and Open items current as things change; when a finding
   stops being current, move it to `docs/history.md` with its date.
+
+## Product build
+
+Turning the engine into a product follows `docs/build-plan.md` (phases, one prompt
+each). Its live state is `docs/build-progress.md`. When the user says `/build`,
+"continue the build", "resume" or "next phase", use the `build` skill: read the
+tracker, resume the current phase from its prompt, and keep the tracker updated
+(checklist, next step, problems, gaps, owner blockers, session log) as you work.
+Never ask the user to paste a phase prompt.

@@ -2,10 +2,16 @@
 
 Status: plan, 2026-11-15. Nothing in it is built yet.
 
-One phase per chat thread. Each phase has a copy-paste prompt below. Every
-prompt starts by pointing the new thread at **Shared context**, so a cold
-thread has everything it needs. Run the phases in order; the table says what
-each needs from earlier ones.
+**How to run it:** open a chat in this repo and type `/build` (or say "continue
+the build"). The `build` skill (`.claude/skills/build/SKILL.md`) reads the live
+tracker `docs/build-progress.md`, picks up the current phase's prompt from this
+file, resumes exactly where the last session stopped, and keeps the tracker's
+progress, problems, gaps and owner blockers current. `/build status` reports
+without changing anything; `/build phase N` works on a specific phase (for
+example phase 3 in parallel with 1–2). No prompts need pasting; they stay below
+as the source of truth for each phase.
+
+Run the phases in order; the table says what each needs from earlier ones.
 
 | # | Phase | Kind | Needs | Ships |
 |---|---|---|---|---|
@@ -71,9 +77,10 @@ consumer product.
 canvas tokens, in `web/`, deployed to Cloudflare Pages. API = Cloudflare Worker
 (TypeScript) + D1, in `api/`. Engine stays Python in `src/`.
 
-**Every thread ends by:** listing what changed, what was verified and how, what
-is left; updating `STATUS.md` (Handoff and Open items) per CLAUDE.md; asking
-before committing.
+**Every thread ends by:** updating `docs/build-progress.md` (checklist, next
+step, problems, gaps, owner blockers, session log), listing what changed, what
+was verified and how, what is left; updating `STATUS.md` (Handoff and Open
+items) per CLAUDE.md when a phase finishes; asking before committing.
 
 ---
 
