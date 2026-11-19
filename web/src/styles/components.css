@@ -332,6 +332,9 @@ a.fd-datechip:hover { border-color: var(--accent); color: var(--ink); }
   background: var(--surface); border: 1px solid var(--line); text-decoration: none; color: var(--ink); font-size: 14px; gap: 12px;
 }
 .fd-book__link > span:last-child, .fd-book__link > strong { white-space: nowrap; }
+.fd-book__link--stack { padding-top: 8px; padding-bottom: 8px; }
+.fd-book__link > .fd-book__main { display: flex; flex-direction: column; gap: 2px; white-space: normal; }
+.fd-book__sub { font-size: 12px; color: var(--muted); }
 .fd-book__link:hover { color: var(--ink); border-color: var(--line2); }
 .fd-sheet-backdrop { position: fixed; inset: 0; background: rgba(21,23,28,0.45); display: flex; align-items: flex-end; z-index: 50; }
 .fd-sheet-backdrop--contained { position: absolute; }

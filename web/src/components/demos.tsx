@@ -63,7 +63,7 @@ export function VoteDemo() {
     '': 'One tap. It helps us send you fewer, better deals.',
     good: 'Thanks! We’ll keep sending trips like this.',
     meh: 'Got it. Fewer trips like this from now on.',
-    diff: 'Thanks. We’ll re-check this fare in the next hour.',
+    diff: 'Thanks, we’ll check this fare again.', // G44
   };
   const [v, setV] = useState('');
   return (

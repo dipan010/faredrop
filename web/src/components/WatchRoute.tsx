@@ -1,5 +1,5 @@
 // C22. States: form (input + button), watching (status + Stop), phone (one
-// button with the suggested target), locked (Free: explains Plus).
+// button with the suggested target), locked (Free: explains Plus; copy G51).
 import { useId, useState } from 'preact/hooks';
 import { inr } from '../data/format';
 import { destCity, originCity } from '../data/places';
@@ -52,8 +52,8 @@ export default function WatchRoute({ origin, destination, target, variant = 'for
 function Locked() {
   return (
     <div class="fd-locked">
-      <span>Route watches are part of Plus.</span>
-      <a class="fd-btn fd-btn--accent fd-btn--40" style="align-self: flex-start" href="/plus">See Plus</a>
+      <span><strong>Name your price on this route.</strong> Plus emails you the moment it drops below it.</span>
+      <a class="fd-btn fd-btn--accent fd-btn--40" style="align-self: flex-start" href="/plus">Try Plus</a>
     </div>
   );
 }

@@ -77,7 +77,7 @@ const checks = [
   { title: 'You save ₹10,730', detail: 'Against the usual ₹35,948, for one adult, return.' },
   { title: 'Non-stop both ways', detail: 'We never show deals with more than one stop.' },
   { title: 'A real, bookable fare', detail: 'Priced on a public flight search from India, not a foreign reseller.' },
-  { title: 'Still there an hour later', detail: 'We check every fare twice before telling anyone about it.' },
+  { title: 'Confirmed on a second check', detail: 'We price every fare twice, at different times, before we tell anyone.' }, // G44
 ];
 const timeline = [
   { when: 'Day 1', title: 'Spotted', detail: 'A Mumbai to Vietnam fare looked low.' },
@@ -218,7 +218,7 @@ const sections = [
             <TextField label="Email" type="email" size={52} placeholder="you@example.com" autocomplete="email" />
             <Select label="Trip length" options={['Any (2–21 nights)', 'Short breaks (2–5 nights)', 'About a week', 'Long holidays (2 weeks+)']} />
             <Select label="Only deals that save at least" size={44} options={['₹4,000', '₹7,500', '₹10,000', '₹20,000']} />
-            <TextField label="Email" type="email" value="priya@" error="Enter a full email address, like you@example.com." />
+            <TextField label="Email" type="email" value="priya@" error="That email looks incomplete. Try something like you@example.com." />
           </div>
           <div class="g-row"><Select inline label="Sort" size={40} options={[{ value: 'saving', label: 'Biggest saving' }, { value: 'price', label: 'Lowest price' }, { value: 'soon', label: 'Soonest departure' }]} /></div>
           <TextField label="Message" type="textarea" placeholder="If it's about a deal, tell us the route and dates." />
@@ -366,7 +366,7 @@ const sections = [
 
     <section class="g-sec" id="c21" aria-labelledby="c21-h">
       <h2 id="c21-h">C21 BookingPanel</h2>
-      <p>Desktop: inline expand (shown open, with the canvas's airline row; it is off by default per G9). Phone: bottom sheet with a focus trap; open it from the sticky bar.</p>
+      <p>Desktop: inline expand (shown open). Phone: bottom sheet with a focus trap; open it from the sticky bar. One Google Flights link (G9).</p>
       <div class="g-pair">{T.map((t) => (
         <div class="g-panel" data-theme={t}><span class="g-tag">{t}</span>
           <div class="g-cols">
@@ -378,7 +378,7 @@ const sections = [
                 <div><span>Out</span><span>Sun 24 Jan 2027</span></div>
                 <div><span>Back</span><span>Thu 28 Jan 2027</span></div>
               </div>
-              <BookingPanel client:visible deal={fra} initialOpen airlineLink />
+              <BookingPanel client:visible deal={fra} initialOpen />
               <SaveSharePair client:visible />
               <p class="fd-small">You book directly with the airline or travel site. Fares like this usually last a few days.</p>
             </section>

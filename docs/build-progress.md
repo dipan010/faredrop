@@ -4,7 +4,7 @@ The live tracker for the product build in `docs/build-plan.md`. Every build
 session reads this first and updates it as it works, so any new chat can pick
 up mid-phase. Run `/build` (or say "continue the build") to resume.
 
-Last updated: 2026-11-19 (phase 1 done; CI green)
+Last updated: 2026-11-19 (phase 1 done; phase 2 copy decided)
 
 ## Now
 
@@ -93,26 +93,14 @@ them.
 Things only the owner can do (accounts, secrets, domain, purchases, approvals,
 product decisions). Each item says exactly what to do and which phase waits.
 
-- **G51:** approve or reword the strings that have no board
-  (`docs/ui-spec.md` §7, "Found in phase 1").
-
-- **Push and merge when ready:** `docs/product-design` (HLD, LLD, plan, build
-  files) and `phase-0-ui-spec` (spec, fixtures) are committed locally, not
-  pushed.
+- **Merge when ready:** `docs/product-design`, `phase-0-ui-spec` and
+  `phase-1-foundations` are pushed but not merged into `main`.
 - **Before phase 6** (`docs/ui-spec.md` §7):
   - G15/G42: whether Free gets any instant alerts, and whether sign-up starts
     a 14-day trial. These set the setup defaults and My alerts limits.
   - G18: whether "Send me a sample alert" counts as a test card. Keep it or
     drop it.
   - G16: the consent wording at sign-up (or accept the proposed line).
-- **Before phase 2 copy is final:**
-  - G38: drop "Saved-deal tracking" and "Filters that stick" from the Plus
-    perks, or gate them in the LLD.
-  - G39: drop "and month" from the Plus card.
-  - G43: which deals the landing page's "recent deals" may show (CCU→FRA is
-    rated wrong).
-  - G44: soften "Still there an hour later".
-  - G9: drop the airline-site booking link.
 - **Before phase 9:** G25, hosted checkout instead of our own card and UPI
   field (proposed: yes).
 - **Optional, any time:** G34, allow copying real sibling-deal rows (prices)
@@ -193,6 +181,17 @@ didn't cover. Each: date, phase, the gap, proposed resolution.
 
 Decisions made during the build, newest first, with who decided.
 
+- 2026-11-19 · owner · Phase 2 copy decided from a marketing pass: G9, G38,
+  G39, G43, G44 and G51. The wording is in `docs/ui-spec.md` §7 under
+  "Decided (owner, 2026-11-19)", and it overrides Appendix A.
+  - Plus is sold on speed, reach and control: "Hear first, not on Sunday",
+    5 cities, "Name your price on any route".
+  - The landing section is "Fares we caught recently", without CCU→FRA.
+  - Trust lines no longer promise "an hour later".
+  - The booking panel has one Google Flights link.
+
+  The built components (WatchRoute, BookingPanel, the gallery samples, the
+  email vote note) were updated to match.
 - 2026-11-19 · owner · Phase 1 gallery accepted against the canvas ("looks
   fine"). Any visual differences get raised after the product pages are built.
 - 2026-11-15 · owner · Build follows `docs/build-plan.md`; one phase at a time

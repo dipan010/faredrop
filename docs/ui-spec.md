@@ -1223,6 +1223,11 @@ Checked first:
   data source. Resolution: both links use `digest.booking_url` (Google
   Flights, exact dates), and the first is relabelled "Book on Google Flights".
   An airline deep link stays out until there's a source for one.
+  **Decided (owner, 2026-11-19):** one link, "**See this fare on Google Flights**",
+  with "Your dates are filled in · opens a new tab" under it (`booking_url`).
+  Keep the "Book this fare" button and the "Price gone when you get there?
+  Tell us" line. No airline-site row.
+
 - **G10 · spec:** "Price changed since we told you" needs the price the user
   was told. Resolution:
   - signed in: `alerts_sent.price`, or `saved.price_at_save` in Saved;
@@ -1278,9 +1283,25 @@ Checked first:
   `prefs` for everyone. Resolution: either gate saved-change emails and
   filters to Plus in LLD §8, or drop those perks from Upgrade. Proposed: drop
   them (simpler, and Free keeps the save-and-track loop).
+  **Decided (owner, 2026-11-19):** drop "Filters that stick" and "Saved-deal
+  tracking". The Upgrade perks are:
+  - **Hear first, not on Sunday:** "Get each deal by email within the hour
+    it's confirmed. Free members wait for the Sunday digest, and good fares
+    often don't last that long."
+  - **Up to 5 departure cities:** "Add the airports you could reach by train or
+    a short drive. More airports, more deals."
+  - **Name your price on any route:** "Set a target for a route you care
+    about, and we'll email you when it dips under."
+
+  On phone, "Know when a saved fare changes" becomes "Deals days before the
+  Sunday email".
+
 - **G39 · owner:** the landing Plus card says "Filter by trip length and
   month", but `prefs` has no month. Resolution: drop "and month" from the copy,
   or add `months` to `prefs`. Proposed: drop it.
+  **Decided (owner, 2026-11-19):** the landing Plus card's last bullet is "Cancel
+  any time from My alerts" (replacing "Filter by trip length and month").
+
 - **G12 · spec:** on the ended page, "Tell me when Goa → Dubai drops again"
   creates a watch, which is Plus only. Resolution: Free users get the same
   button, which leads to `/plus` with the copy "Watching routes is a Plus
@@ -1375,6 +1396,13 @@ Checked first:
   rated wrong on 15 Nov. Resolution: recent deals = the last 30 days' deals
   with a `good`-or-unrated verdict; departed ones are allowed (they're
   "recent", not live) but never linked as bookable.
+  **Decided (owner, 2026-11-19):** heading "**Fares we caught recently**", sub-line
+  "Real return fares from Indian cities, priced twice before we sent them. One
+  adult, at most one stop." Show the last 30 days' deals, leaving out any the
+  owner rated wrong. Departed deals may show, marked "Ended" and with no
+  booking link. Sample set: BOM→SGN, GOX→BKK, BOM→BAH, BLR→SGN, GOI→CMB,
+  GOI→DXB (ended); not CCU→FRA.
+
 - **G44 · owner:** some trust claims need to stay true:
   - "Checked twice" and "Still there an hour later" hold only if confirmation
     happens on the next hourly `gf.yml` run;
@@ -1384,6 +1412,13 @@ Checked first:
   Resolution: keep "checked twice" and drop "an hour later" in favour of "on a
   later check". Make the re-check note "We'll re-check this fare" until the
   side thread sets a budget.
+  **Decided (owner, 2026-11-19):**
+  - The deal-page check reads "**Confirmed on a second check**" / "We price
+    every fare twice, at different times, before we tell anyone."
+  - The landing "Checked twice" body ends "…so the fare is far more likely to
+    still be there when you open the alert."
+  - E1's "Price was different" note is "Thanks, we'll check this fare again."
+
 - **G45 · spec:** P9 says "to 25 destinations" even when the user switched
   regions off. Resolution: count the destinations in the chosen regions.
 
@@ -1431,6 +1466,13 @@ Checked first:
 
   Resolution: the owner approves or rewords them before phase 2 copy is
   final.
+  **Decided (owner, 2026-11-19):**
+  - The locked watch box reads "**Name your price on this route.** Plus emails
+    you the moment it drops below it." with the button "Try Plus".
+  - The email error is "That email looks incomplete. Try something like
+    you@example.com."
+  - Screen-reader-only labels stay as written.
+
 - **G52 · lld:** LLD §5 gives no response bodies. `web/src/data/types.ts`
   proposes `DealsPage`, `DealDetail`, `Meta`, `Me`, `SavedItem` and `Watch`.
   Resolution: phase 5 writes them into LLD §5 or changes the types.
@@ -1439,6 +1481,12 @@ Checked first:
   phase 4 excludes `src/pages/dev/` from production builds.
 
 ## Appendix A. Copy, verbatim, per page
+
+> **Approved copy changes (owner, 2026-11-19).** Appendix A is the canvas
+> verbatim. Where it differs from a decision in §7 (G9, G38, G39, G43, G44,
+> G51), the §7 decision wins. Pages built from phase 2 on use the decided
+> wording.
+
 
 Generated from the canvas boards (version `1795082767-d03c`):
 - the text in each board's markup, then the strings in its logic, in board order;
