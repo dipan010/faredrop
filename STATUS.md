@@ -10,6 +10,17 @@ Last reviewed: 2026-10-21 (review page refreshed; budget, dead routes and Mopa c
 
 **What it is.** A personal fare-deal alert in the style of Zomunk, for Indian departure cities, run free on GitHub Actions. Repo: https://github.com/dipan010/faredrop (public). Email alerts go to the owner. Deals can be rated on a private review page: https://claude.ai/artifact/FKn5RLNgx8sxmbBpLoYZc4
 
+**Product build (2026-11-19):** phase 0 is done.
+- `docs/ui-spec.md` turns the design canvas's 41 boards into 19 pages and 5
+  emails. It also has tokens, components, the verbatim copy, and 45 gaps, each
+  with a proposed resolution.
+- `docs/fixtures/snapshot.sample.json` holds the 7 canvas deals;
+  `python3 tools/check_fixture.py` validates it.
+- Next are phase 1 (frontend foundations) and, in parallel, phase 3 (the
+  exporter).
+- The live state and the owner decisions still open are in
+  `docs/build-progress.md`. Type `/build` to continue.
+
 **How it works now**
 1. **History (Travelpayouts, `collect.yml`, every 2 h, idempotent per UTC day):** 302 international routes from 21 Indian origins (`routes/routes.json`, added add-only by `src/routes.py`). One `/v1/prices/calendar` call per route, plus the per-month `/v1/prices/cheap` walk for the original 23 BLR routes: 440 cells a day. Complete every day since Oct 4 (Oct 3 was lost on the laptop era). 6,737 raw responses and 145 route-month baselines as of Oct 19. Used for discovery and as a sanity check, **never as a judge of a deal**: its cheapest fares are often Russian-market seller prices (see "Finding 2026-10-12" in `docs/history.md`).
 2. **Deals (Google Flights, `gfcollect.py`, `gf.yml` hourly plus a step in `collect.yml`):** watches `ALERT_ORIGINS` (16 airports: BLR, MAA, COK, HYD, GOI, GOX, BOM, CCU, DEL, JAI, LKO, ATQ, VNS, PNQ, AMD, TRV) × 51 destinations, 816 routes (`routes/gf_routes.json`), any 2–21-night trip 7–180 days out. Since 2026-11-02: 85% of lookups follow Travelpayouts' cheap-looking fares (discovery), 15% random trips (exploration); the review-only searches of the 14 other origins are off (`GF_REVIEW_SHARE` = 0). An unfiltered search reads Google's own price insights (usual price, typical range, ~62-day history). Candidate = fare ≤ bottom of the typical range and ≥ ₹4,000 under usual. Confirmed **in a later run** with a filtered search (≤1 stop, no self-transfers): the fare must reproduce within 5%, and Google's usual must fit Travelpayouts' typical (0.6–1.6×) with the deal below it. Only then is it a deal; email goes out only for `ALERT_ORIGINS`.
@@ -62,7 +73,7 @@ Last reviewed: 2026-10-21 (review page refreshed; budget, dead routes and Mopa c
 - [ ] **Snapshots** grow with every run; consider skipping the upload when a run changed nothing.
 - [ ] **End-of-Stage-1 write-up** (the AI-quality story below), with alert precision before and after.
 - [ ] Optional: a write-up comparing it with the Zomunk model.
-- [ ] **Product build (planned 2026-11-15, nothing built yet).** Frontend mocks: design canvas https://claude.ai/artifact/GBnLGrXQ5L1bnpGKmnPGDr (private). Backend design: `docs/hld.md`, `docs/lld.md`, and the architecture page https://claude.ai/artifact/6rCxMX8jAVoeionrv1dJJ8 (private). Build plan with one prompt per chat thread: `docs/build-plan.md` (phase 0, canvas → `docs/ui-spec.md`, comes first). Product decisions (user, 2026-11-14): no WhatsApp (email only); no test cards or experiment output in the UI; the product shows only the original 8 airports × 25 destinations (an export allowlist hides the 14 Nov additions). Near-duplicate deals show as one card with "also this cheap on…" (user, 2026-10-21). Open: Plus price, domain, email provider, whether Free gets any instant alerts, and whether the engine should re-check live deals on a schedule (costs Google lookups).
+- [ ] **Product build (planned 2026-11-15; phase 0 done 2026-11-19).** Phase 0 wrote `docs/ui-spec.md` (41 boards → 19 pages + 5 emails, tokens, components, verbatim copy, 45 gaps) and `docs/fixtures/snapshot.sample.json` (7 canvas deals, checked by `tools/check_fixture.py`); next are phase 1 (frontend foundations) and, in parallel, phase 3 (exporter). Live state: `docs/build-progress.md`. Frontend mocks: design canvas https://claude.ai/artifact/GBnLGrXQ5L1bnpGKmnPGDr (private). Backend design: `docs/hld.md`, `docs/lld.md`, and the architecture page https://claude.ai/artifact/6rCxMX8jAVoeionrv1dJJ8 (private). Build plan with one prompt per chat thread: `docs/build-plan.md` (phase 0, canvas → `docs/ui-spec.md`, comes first). Product decisions (user, 2026-11-14): no WhatsApp (email only); no test cards or experiment output in the UI; the product shows only the original 8 airports × 25 destinations (an export allowlist hides the 14 Nov additions). Near-duplicate deals show as one card with "also this cheap on…" (user, 2026-10-21). Open: Plus price, domain, email provider, whether Free gets any instant alerts, and whether the engine should re-check live deals on a schedule (costs Google lookups).
 - Closed by later work (details in `docs/history.md`): Google Flights as a source (built 2026-10-12), Google answer-rate measurement (done 2026-10-16), `QUOTES_PER_CALL` yield check (3.0 fares per call, 2026-10-12), `VERIFY_SUPPRESS_GONE` (replaced by `VERIFY_REQUIRE_CONFIRMED`).
 
 ## Target dates (re-agreed 2026-10-19)
