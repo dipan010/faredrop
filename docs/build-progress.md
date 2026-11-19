@@ -4,17 +4,18 @@ The live tracker for the product build in `docs/build-plan.md`. Every build
 session reads this first and updates it as it works, so any new chat can pick
 up mid-phase. Run `/build` (or say "continue the build") to resume.
 
-Last updated: 2026-11-19 (phase 1: built and tested locally; CI and canvas sign-off pending)
+Last updated: 2026-11-19 (phase 1 done; CI green)
 
 ## Now
 
-- **Current phase:** 1 · Frontend foundations
-- **Status:** in progress (all done except CI, which needs a push)
-- **Branch:** `phase-1-foundations`, from `phase-0-ui-spec` (not merged to
-  `main` yet; `main` lacks the HLD, LLD, plan and spec)
-- **Next step:** commit (owner approval pending). After the push, run the `web` CI job with
-  `gh workflow run check.yml --ref phase-1-foundations` and check it is green.
-  Then mark phase 1 done.
+- **Current phase:** 2 · Public pages on fixtures (phase 1 done 2026-11-19)
+- **Status:** not started
+- **Branch:** `phase-2-public-pages`, to be created from `phase-1-foundations`
+  (none of phases 0–1 is merged to `main` yet)
+- **Next step:** when phase 2 starts, fill this checklist from its prompt in
+  `docs/build-plan.md`. Build pages from the components in `web/src/components/`
+  and the copy in `docs/ui-spec.md` Appendix A. G53: keep `/dev/` out of
+  production.
 - **Blocked on owner:** nothing for phase 1. Phase 6 needs G15/G42 decided
   (see "Blocked on owner").
 - **Can run in parallel:** phase 3 (exporter) now; its inputs are gaps G3,
@@ -27,7 +28,7 @@ Status values: not started · in progress · blocked · done.
 | # | Phase | Needs | Status | Branch | Started | Done |
 |---|---|---|---|---|---|---|
 | 0 | Canvas → written UI spec | — | done | phase-0-ui-spec | 2026-11-19 | 2026-11-19 |
-| 1 | Frontend foundations | 0 | in progress | phase-1-foundations | 2026-11-19 | |
+| 1 | Frontend foundations | 0 | done | phase-1-foundations | 2026-11-19 | 2026-11-19 |
 | 2 | Public pages on fixtures | 1 | not started | | | |
 | 3 | Exporter | 0 | not started | | | |
 | 4 | Read-only site live | 2, 3 | not started | | | |
@@ -77,9 +78,11 @@ them.
     fixture fails `astro build`, which I tested);
   - a fixture clock;
   - an `apiSource` stub.
-- [ ] Done when:
+- [x] Done when:
   - [x] axe passes;
-  - [ ] the CI job is green. It needs a push, and the owner approves pushes.
+  - [x] the CI job is green: run 44515248672 on 7713f18, both `check` and
+    `web` passed. The first run failed because `@types/node` was missing
+    (fixed).
   - [x] the gallery matches the canvas side by side in both themes and both
     widths. The owner looked on 2026-11-19 and said it "looks fine". They will
     raise any differences once the product pages are built.
@@ -90,15 +93,6 @@ them.
 Things only the owner can do (accounts, secrets, domain, purchases, approvals,
 product decisions). Each item says exactly what to do and which phase waits.
 
-- **Phase 1:**
-  Also approve the commit, then the push, of `phase-1-foundations`, so the
-  `web` CI job can run.
-  - Pushing it also publishes the unpushed `docs/product-design` and
-    `phase-0-ui-spec` commits to the public repo.
-  - Those commits include the HLD, LLD, build plan and UI spec, and the plan's
-    links to the private canvas and architecture page (the pages stay
-    private; only the URLs become public).
-  - Say whether that's OK.
 - **G51:** approve or reword the strings that have no board
   (`docs/ui-spec.md` §7, "Found in phase 1").
 
@@ -209,6 +203,16 @@ Decisions made during the build, newest first, with who decided.
 Newest first. One entry per session: date, phase, what was done, where it
 stopped.
 
+- 2026-11-19 · 1 · Phase 1 done.
+  - The owner accepted the gallery against the canvas.
+  - Committed cbb4ae7 and 7713f18 (the fix adds `@types/node` for CI) and
+    pushed `phase-1-foundations`. That push also published `docs/product-design`
+    and `phase-0-ui-spec`, with the owner's OK.
+  - CI is green on both jobs.
+  - Handoff: phase 2 builds the public pages from `web/src/components` on the
+    sample fixture. Phase 3 (the exporter) can run in parallel.
+  - Still open for the owner: G51 copy, and the phase 2 copy items G38, G39,
+    G43, G44 and G9.
 - 2026-11-19 · 1 · Started phase 1 on `phase-1-foundations`, branched from
   `phase-0-ui-spec`.
   - Built `web/`: pinned toolchain, tokens and the check script, fonts,
